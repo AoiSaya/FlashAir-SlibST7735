@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/15 rev.0.01 first version
+-- 2018/10/16 rev.0.02 first version
 -----------------------------------------------
 --[[
 Pin assign
@@ -314,9 +314,9 @@ function ST7735:pset(x,y,color)
 	if (x<0 or x>self.xMax) then return end
 	if (y<0 or y>self.yMax) then return end
 	local h,v = self:pTrans(x,y)
-	self:writeWord(0x20,h)
-	self:writeWord(0x21,v)
-	self:writeWord(0x22,color)
+	self:writeWord(0x2A,h)
+	self:writeWord(0x2B,v)
+	self:writeWord(0x2C,color)
 end
 
 function ST7735:line(x1,y1,x2,y2,color)
