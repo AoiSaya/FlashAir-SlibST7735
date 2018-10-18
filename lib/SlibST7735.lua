@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/17 rev.0.03 setRamMode debug
+-- 2018/10/18 rev.0.04 setRamMode debug
 -----------------------------------------------
 --[[
 Pin assign
@@ -128,13 +128,23 @@ function ST7735:setRamMode(BGR,MDT,DRC)
 	self:writeWord(0x03,val)
 end
 
-function ILI9163C:setRamMode(BGR,IFPF,MYXV)
 	-- BGR 0:BGR order, 1:RGB order
 	-- IFPF 3:12bit 5:16bit, 6:18bit
 	-- MYXV 2:
-	-- set GRAM writeWord direction and [7:5]MYXV,[3]BGR,
-	local val = MYXV * 0x20
-			  + BGR  * 0x8
+	-- set GRAM writeWord direction and [7]MY,[6]MX,[5]MV,[4]ML,[3]RGB,[2]MH
+	MY	=
+	MX	=
+	MV	=
+	ML	=
+	RGB	= 1-BGR
+	MH	=
+	IFPF= 0x05
+	local val = MY * 0x80
+			  + MX * 0x40
+			  + MV * 0x20
+			  + ML * 0x10
+			  + RGB* 0x08
+			  + MH * 0x04
 	self:writeByte(0x36, val)
 	-- Interface Pixel Format [2:0]IFPF
 	local val = IFPF
