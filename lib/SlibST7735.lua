@@ -2,21 +2,23 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/18 rev.0.04 setRamMode debug
+-- 2018/10/25 rev.0.06 for PIO and LED function
 -----------------------------------------------
 --[[
 Pin assign
-	PI	 SPI	init	TYPE1	TYPE2
-CMD	0x01 DO 	L		SDA 	SDA
-D0	0x02 CLK	L		SCK 	SCK
-D1	0x04 CS 	H		A0		A0
-D2	0x08 DI 	I		CS		CS
-D3	0x10 RSV	L		RESET 	Hi-Z
+	PIO	 SPI	TYPE1	TYPE2	TYPE3
+CMD	0x01 DO 	SDA 	SDA		SDA
+D0	0x02 CLK	SCK 	SCK		SCK
+D1	0x04 CS 	A0		A0		A0
+D2	0x08 DI 	CS		CS		CS
+D3	0x10 RSV	RESET 	PIO		LED
 --]]
 
 local ST7735 = {
-id	  = 0;
-gs	  = 0;
+type  = 1;
+mv	  = 0;
+mx	  = 0;
+my	  = 0;
 swp   = false;
 xMax  = 176-1;
 yMax  = 220-1;
@@ -26,8 +28,10 @@ hDrc  = 1;
 vDrc  = 1;
 hOfs  = 0;
 vOfs  = 0;
+dOfs  = 0;
 rOfs  = 0;
 ctrl  = 0x1F;
+piod  = 0x10;
 x	  = 0;
 y	  = 0;
 x0	  = 0;
@@ -66,7 +70,7 @@ function ST7735:writeWord(cmd,...)
 	spi("bit",8)
 end
 
-function ILI9163C:writeCmd(cmd)
+function ST7735:writeCmd(cmd)
 	local spi = fa.spi
 	spi("cs",0)
 	spi("write", cmd)
@@ -78,19 +82,20 @@ function ILI9163C:readData(cmd, bit)
 	local i, s, dt, ret
 	local pio = fa.pio
 	local ctrl= self.ctrl
+	local piod= self.piod
 	local bx  = bit32.extract
 	local bb  = bit32.band
 
 	for i=7,0,-1 do
 		dt = bx(cmd,i,1)
-		pio(ctrl,0x10+dt) -- CS=0,RS=0,CLK=0
-		pio(ctrl,0x12+dt) -- CS=0,RS=0,CLK=1
+		pio(ctrl,piod+0x00+dt) -- CS=0,RS=0,CLK=0
+		pio(ctrl,piod+0x02+dt) -- CS=0,RS=0,CLK=1
 	end
 	ctrl = ctrl-0x01
 	ret = 0
 	for i=1,bit do
-		pio(ctrl,0x14) -- CS=0,RS=1,CLK=0,
-		s,dt = pio(ctrl,0x16) -- CS=0,RS=1,CLK=1
+		pio(ctrl,piod+0x04) -- CS=0,RS=1,CLK=0,
+		s,dt = pio(ctrl,piod+0x06) -- CS=0,RS=1,CLK=1
 		ret = ret*2+bb(dt,0x01)
 	end
 
@@ -99,15 +104,16 @@ end
 --]]
 
 function ST7735:writeRam(h,v,str,...)
-	self:writeWord(0x2A,h)
-	self:writeWord(0x2B,v)
+	if self.mv==1 then h,v=v,h end
+	self:writeWord(0x2A,h+self.rOfs)
+	self:writeWord(0x2B,v+self.dOfs)
 	self:writeString(0x2C,str,...)
 end
 
 function ST7735:writeRamCmd(h1,v1,h2,v2)
 	local spi = fa.spi
-	self:writeWord(0x2A,h1,h2)
-	self:writeWord(0x2B,v1,v2)
+	self:writeWord(0x2A,{h1+self.rOfs,h2+self.rOfs})
+	self:writeWord(0x2B,{v1+self.dOfs,v2+self.dOfs})
 	self:writeCmd(0x2C)
 end
 
@@ -116,28 +122,22 @@ function ST7735:writeRamData(str,...)
 end
 
 function ST7735:setRamMode(BGR,MDT,DRC)
-	-- BGR 0:BGR order,1:RGB order
-	-- MDT 0:16bit,3:24bit
-	-- DRC 0:incliment to up,1:incliment to right
-	-- set GRAM writeWord direction and [12]BGR,[9:8]MDT,[5:4]ID=3,[3]AM
-	local val = 0x0000
-			+ BGR * 0x1000
-			+ MDT * 0x100
-			+ self.id * 0x10
-			+ bit32.bxor(DRC,(self.swp and 1 or 0)) * 0x8
-	self:writeWord(0x03,val)
-end
-
-	-- BGR 0:BGR order, 1:RGB order
-	-- IFPF 3:12bit 5:16bit, 6:18bit
-	-- MYXV 2:
-	-- set GRAM writeWord direction and [7]MY,[6]MX,[5]MV,[4]ML,[3]RGB,[2]MH
-	MY	=
-	MX	=
-	MV	=
-	ML	=
-	RGB	= 1-BGR
-	MH	=
+-- BGR 0:BGR order,1:RGB order
+-- MDT 0:16bit,3:24bit
+-- DRC 0:incliment to up,1:incliment to right
+--
+-- RGB 1:BGR order, 0:RGB order
+-- IFPF 3:12bit 5:16bit, 6:18bit
+-- MYXV 2:
+-- set GRAM writeWord direction and [7]MY,[6]MX,[5]MV,[4]ML,[3]RGB,[2]MH
+	MY	= self.my
+	MX	= self.mx
+--	MV	= (self.mv+DRC)%2
+	MV	= DRC
+	self.mv = DRC
+	ML	= 0
+	RGB	= BGR
+	MH	= 0
 	IFPF= 0x05
 	local val = MY * 0x80
 			  + MX * 0x40
@@ -146,7 +146,7 @@ end
 			  + RGB* 0x08
 			  + MH * 0x04
 	self:writeByte(0x36, val)
-	-- Interface Pixel Format [2:0]IFPF
+-- Interface Pixel Format [2:0]IFPF
 	local val = IFPF
 	self:writeByte(0x3A, val)
 end
@@ -154,22 +154,26 @@ end
 function ST7735:setWindow(h1,v1,h2,v2)
 	if h1>h2 then h1,h2=h2,h1 end
 	if v1>v2 then v1,v2=v2,v1 end
+	self.h2=h2
+	self.v2=v2
 	self:writeRamCmd(h1,v1,h2,v2)
 end
 
 function ST7735:resetWindow()
-	self:writeRamCmd(0,self.rOfs,self.hSize-1,self.rOfs+self.vSize-1)
+	self.h2=self.hSize-1
+	self.v2=self.vSize-1
+	self:writeRamCmd(0,0,self.hSize-1,self.vSize-1)
 end
 
 function ST7735:pTrans(x,y)
 	if self.swp then x,y = y,x end
-	return self.hDrc*x+self.hOfs, self.vDrc*y+self.vOfs
+	return self.hDrc*x, self.vDrc*y
 end
 
 function ST7735:bTrans(x1,y1,x2,y2)
-	local hD,vD,hO,vO = self.hDrc, self.vDrc, self.hOfs, self.vOfs
+	local hD,vD = self.hDrc, self.vDrc
 	if self.swp then x1,y1,x2,y2 = y1,x1,y2,x2 end
-	return hD*x1+hO, vD*y1+vO, hD*x2+hO, vD*y2+vO
+	return hD*x1, vD*y1, hD*x2, vD*y2
 end
 
 function ST7735:clip(x1,y1,x2,y2)
@@ -199,7 +203,7 @@ function ST7735:clip(x1,y1,x2,y2)
 	return ret,x1,y1,x2,y2
 end
 
-function ILI9163C:setup()
+function ST7735:setup()
 	self:writeStart()
 	self:writeCmd(0x11) --exit sleep
 	sleep(5)
@@ -252,7 +256,7 @@ function ILI9163C:setup()
 		{0x50, --0x50
 		 99}) --0x5b
 	self:writeByte(0xC7, 0) --0x40
-	self:setRamMode(0, 5, 2)
+	self:setRamMode(0, 0, 0)
 	self:resetWindow()
 	self:writeEnd()
 end
@@ -262,17 +266,21 @@ end
 -- type: 1:D3=RST=H/L, 2:D3=Hi-Z(no hard reset)
 -- rotate: 0:upper pin1, 1:upper pin5, 2:lower pin1, 3:lower pin11
 
-function ST7735:init(type,rotate,xSize,ySize,offset)
-	local id,gs,swp,hDrc,vDrc
-	if type==1 then self.ctrl=0x1F end
-	if type==2 then self.ctrl=0x0F end
-	if rotate==0 then id,gs,swp,hDrc,vDrc = 0,0,false,-1, 1 end
-	if rotate==1 then id,gs,swp,hDrc,vDrc = 0,1,true,  1,-1 end
-	if rotate==2 then id,gs,swp,hDrc,vDrc = 3,0,false, 1,-1 end
-	if rotate==3 then id,gs,swp,hDrc,vDrc = 3,1,true, -1, 1 end
+function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
+	local mv,mx,my,swp,hDrc,vDrc
 
-	self.id	 = id
-	self.gs	 = gs
+	if type==1 then self.ctrl=0x1F end
+	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,1,false, 1, 1 end
+	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
+	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,0,false, 1,-1 end
+	if rotate==3 then mv,mx,my,swp,hDrc,vDrc = 0,0,0,true, -1, 1 end
+
+	self.type= type
+	self:ledOff()
+
+	self.mv	 = mv
+	self.mx	 = mx
+	self.my	 = my
 	self.swp = swp
 	if swp then
 		self.hSize = ySize
@@ -284,21 +292,27 @@ function ST7735:init(type,rotate,xSize,ySize,offset)
 	self.hDrc = hDrc
 	self.vDrc = vDrc
 	self.hOfs = (hDrc>0) and 0 or self.hSize-1
-	self.vOfs = (vDrc>0) and offset or self.vSize+offset-1
+	self.vOfs = (vDrc>0) and 0 or self.vSize-1
 	self.mRot = mRot
 	self.xMax = xSize-1
 	self.yMax = ySize-1
-	self.rOfs = offset;
+	self.dOfs = dOffset;
+	self.rOfs = rOffset;
 
 -- reset sequence
-	fa.pio(self.ctrl,0x10) -- RST=1,CS=0,RS=0
-	sleep(1)
-	fa.pio(self.ctrl,0x00) -- RST=0,CS=0,RS=0
-	sleep(10)
-	fa.pio(self.ctrl,0x18) -- RST=1,CS=1,RS=0
-	self:writeWord(0x28,0xCE) -- Software reset
+	if type==1 then
+		fa.pio(self.ctrl,0x10) -- RST=1,CS=0,RS=0
+		sleep(1)
+		fa.pio(self.ctrl,0x00) -- RST=0,CS=0,RS=0
+		sleep(10)
+		fa.pio(self.ctrl,0x18) -- RST=1,CS=1,RS=0
+	end
+	self:writeByte(0x01,0x01) -- Software reset
 	sleep(120)
 	self:setup()
+
+	self:writeStart()
+	self:cls()
 end
 
 function ST7735:writeStart()
@@ -306,7 +320,7 @@ function ST7735:writeStart()
 		fa.spi("mode",0)
 		fa.spi("init",1)
 		fa.spi("bit",8)
-		fa.pio(self.ctrl,0x18) -- CS=1,RS=0
+		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
 		self.enable = true
 	end
 end
@@ -314,14 +328,14 @@ end
 function ST7735:writeEnd()
 	if self.enable then
 		self:writeCmd(0x00)
-		fa.pio(self.ctrl,0x1C) -- CS=1,RS=1
+		fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
 		self.enable = falce
 	end
 end
 
 function ST7735:cls()
 	self:resetWindow()
-	self:writeRam(0,self.hSize*self.rOfs*2,"",self.hSize*self.vSize*2)
+	self:writeRam(0,0,"",self.hSize*self.vSize*2)
 	collectgarbage()
 end
 
@@ -337,8 +351,8 @@ function ST7735:pset(x,y,color)
 	if (x<0 or x>self.xMax) then return end
 	if (y<0 or y>self.yMax) then return end
 	local h,v = self:pTrans(x,y)
-	self:writeWord(0x2A,h)
-	self:writeWord(0x2B,v)
+	self:writeWord(0x2A,h+self.rOfs)
+	self:writeWord(0x2B,v+self.dOfs)
 	self:writeWord(0x2C,color)
 end
 
@@ -376,7 +390,7 @@ function ST7735:line(x1,y1,x2,y2,color)
 		h1,v1,h2,v2 = v1,h1,v2,h2
 		hn,vn = vn,hn
 	end
-	hd = (self.id==0) and -1 or 1
+	hd = (self.mx==0) and -1 or 1
 	if h1*hd>h2*hd then h1,v1,h2,v2 = h2,v2,h1,v1 end
 	vd = (v1<v2) and 1 or -1
 	hv = hd*vd*hn/vn
@@ -418,7 +432,6 @@ function ST7735:boxFill(x1,y1,x2,y2,color)
 	if y2>yMax then y2=yMax end
 
 	col = string.char(bx(color,8,8),bx(color,0,8))
-
 	x1 = mf(x1+0.5)
 	x2 = mf(x2+0.5)
 	y1 = mf(y1+0.5)
@@ -434,11 +447,11 @@ function ST7735:boxFill(x1,y1,x2,y2,color)
 			self:writeRam(h1,i,dat)
 		end
 	else
-		if not self.swp then self:setRamMode(0,0,1);v1=v2 end
+		if not self.swp then self:setRamMode(0,0,1);v2=v1 end
 		dat = string.rep(col,vn)
 		hd = (h1>h2) and -1 or 1
 		for i=h1,h2,hd do
-			self:writeRam(i,v1,dat)
+			self:writeRam(i,v2,dat)
 		end
 	end
 
@@ -530,13 +543,10 @@ function ST7735:put(x,y,bitmap)
 	if( x+bw>xMax+1 ) then bw=xMax+1-x end
 	if( y+bh>yMax+1 ) then bh,by=yMax+1-y,y+bh-yMax-1 end
 	h1,v2 = self:pTrans(x,y+bh-1)
-	hs = (self.id==0) and 1 or -1
+	hs = (self.mx==0) and 1 or -1
 	vs = hs
 	if self.swp then vs=0 else hs=0 end
 
-	if bb==3 then
-		self:setRamMode(0,3,0)
-	end
 	if bx==0 then
 		if( flat==0 )then
 			bn = bw*bb
@@ -569,7 +579,6 @@ function ST7735:put(x,y,bitmap)
 			end
 		end
 	end
-	self:setRamMode(0,0,0)
 	collectgarbage()
 end
 
@@ -632,7 +641,7 @@ function ST7735:print(str)
 		slen = slen - il
 		h1,v1,h2,v2 = self:bTrans(self.x,self.y,self.xMax,self.y+mg*fh-1)
 		self:setWindow(h1,v1,h2,v2)
-		if self.id==0 then self:writeRamCmd(h1,v2) else	self:writeRamCmd(h2,v1) end
+		if self.mx==0 then self:writeRamCmd(h1,v2) else	self:writeRamCmd(h2,v1) end
 
 		bk=1
 		for i=is,is+il-1 do
@@ -677,6 +686,29 @@ function ST7735:println(str)
 	self.x,self.y = self.x0,self.y+self.mag*self.font.height
 
 	return self.x,self.y
+end
+
+function ST7735:pio(ctrl, data)
+	local dat,s,ret
+
+	if self.type>1 then
+		self.ctrl = bit32.band(self.ctrl,0x0F)+ctrl*0x10
+		self.piod = data*0x10
+		dat = bit32.band(enable and 0x0C or 0x04)+self.piod
+		s, ret = fa.pio(self.ctrl, dat)
+		ret = bit32.btest(ret,0x10) and 1 or 0
+	end
+
+	return ret
+end
+
+function ST7735:ledOn()
+	sleep(30)
+	self:pio(1,1)
+end
+
+function ST7735:ledOff()
+	self:pio(1,0)
 end
 
 collectgarbage()
