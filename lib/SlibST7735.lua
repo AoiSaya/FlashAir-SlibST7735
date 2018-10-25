@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/25 rev.0.06 for PIO and LED function
+-- 2018/10/25 rev.0.07 debug rot
 -----------------------------------------------
 --[[
 Pin assign
@@ -16,6 +16,7 @@ D3	0x10 RSV	RESET 	PIO		LED
 
 local ST7735 = {
 type  = 1;
+mvDef = 0;
 mv	  = 0;
 mx	  = 0;
 my	  = 0;
@@ -35,6 +36,8 @@ piod  = 0x10;
 x	  = 0;
 y	  = 0;
 x0	  = 0;
+h2	  = 176-1;
+v2	  = 220-1;
 fc	  = "\255\255";
 bc	  = "\000\000";
 font  = {};
@@ -104,16 +107,24 @@ end
 --]]
 
 function ST7735:writeRam(h,v,str,...)
-	if self.mv==1 then h,v=v,h end
-	self:writeWord(0x2A,h+self.rOfs)
-	self:writeWord(0x2B,v+self.dOfs)
+	local h2,v2=self.h2,self.v2
+	if self.mv==1 then h,v,h2,v2=v,h,v2,h2 end
+	self:writeWord(0x2A,{h,h2})
+	self:writeWord(0x2B,{v,v2})
 	self:writeString(0x2C,str,...)
 end
 
+function ST7735:writeRamWord(h,v,data)
+	if self.mv==1 then h,v=v,h end
+	self:writeWord(0x2A,h)
+	self:writeWord(0x2B,v)
+	self:writeWord(0x2C,data)
+end
+
 function ST7735:writeRamCmd(h1,v1,h2,v2)
-	local spi = fa.spi
-	self:writeWord(0x2A,{h1+self.rOfs,h2+self.rOfs})
-	self:writeWord(0x2B,{v1+self.dOfs,v2+self.dOfs})
+	if self.mv==1 then h1,v1,h2,v2=v1,h1,v2,h2 end
+	self:writeWord(0x2A,{h1,h2})
+	self:writeWord(0x2B,{v1,v2})
 	self:writeCmd(0x2C)
 end
 
@@ -130,14 +141,13 @@ function ST7735:setRamMode(BGR,MDT,DRC)
 -- IFPF 3:12bit 5:16bit, 6:18bit
 -- MYXV 2:
 -- set GRAM writeWord direction and [7]MY,[6]MX,[5]MV,[4]ML,[3]RGB,[2]MH
-	MY	= self.my
-	MX	= self.mx
---	MV	= (self.mv+DRC)%2
-	MV	= DRC
-	self.mv = DRC
-	ML	= 0
-	RGB	= BGR
-	MH	= 0
+	local MY	= self.my
+	local MX	= self.mx
+ 	local MV	= (self.mvDef+DRC)%2
+	self.mv = MV
+	local ML	= 0
+	local RGB	= BGR
+	local MH	= 0
 	IFPF= 0x05
 	local val = MY * 0x80
 			  + MX * 0x40
@@ -154,26 +164,24 @@ end
 function ST7735:setWindow(h1,v1,h2,v2)
 	if h1>h2 then h1,h2=h2,h1 end
 	if v1>v2 then v1,v2=v2,v1 end
-	self.h2=h2
-	self.v2=v2
 	self:writeRamCmd(h1,v1,h2,v2)
 end
 
 function ST7735:resetWindow()
-	self.h2=self.hSize-1
-	self.v2=self.vSize-1
-	self:writeRamCmd(0,0,self.hSize-1,self.vSize-1)
+	local h1,h2 = self.rOfs, self.rOfs+self.hSize-1
+	local v1,v2 = self.dOfs, self.dOfs+self.vSize-1
+	self:writeRamCmd(h1,v1,h2,v2)
 end
 
 function ST7735:pTrans(x,y)
 	if self.swp then x,y = y,x end
-	return self.hDrc*x, self.vDrc*y
+	return self.hDrc*x+self.hOfs, self.vDrc*y+self.vOfs
 end
 
 function ST7735:bTrans(x1,y1,x2,y2)
-	local hD,vD = self.hDrc, self.vDrc
+	local hD,vD,hO,vO = self.hDrc, self.vDrc, self.hOfs, self.vOfs
 	if self.swp then x1,y1,x2,y2 = y1,x1,y2,x2 end
-	return hD*x1, vD*y1, hD*x2, vD*y2
+	return hD*x1+hO, vD*y1+vO, hD*x2+hO, vD*y2+vO
 end
 
 function ST7735:clip(x1,y1,x2,y2)
@@ -267,37 +275,38 @@ end
 -- rotate: 0:upper pin1, 1:upper pin5, 2:lower pin1, 3:lower pin11
 
 function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
-	local mv,mx,my,swp,hDrc,vDrc
-
-	if type==1 then self.ctrl=0x1F end
-	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,1,false, 1, 1 end
-	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
-	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,0,false, 1,-1 end
-	if rotate==3 then mv,mx,my,swp,hDrc,vDrc = 0,0,0,true, -1, 1 end
+	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
 	self.type= type
 	self:ledOff()
 
-	self.mv	 = mv
+	if type==1 then self.ctrl=0x1F end
+	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
+	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
+	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,1,false, 1,-1 end
+	if rotate==3 then mv,mx,my,swp,hDrc,vDrc = 1,0,0,true, -1, 1 end
+
+	hSize = swp and ySize or xSize
+	vSize = swp and xSize or ySize
+
+	self.mvDef = mv
 	self.mx	 = mx
 	self.my	 = my
+
 	self.swp = swp
-	if swp then
-		self.hSize = ySize
-		self.vSize = xSize
-	else
-		self.hSize = xSize
-		self.vSize = ySize
-	end
+	self.hSize = hSize
+	self.vSize = vSize
 	self.hDrc = hDrc
 	self.vDrc = vDrc
-	self.hOfs = (hDrc>0) and 0 or self.hSize-1
-	self.vOfs = (vDrc>0) and 0 or self.vSize-1
+	self.hOfs = (hDrc>0) and rOffset or rOffset+hSize-1
+	self.vOfs = (vDrc>0) and dOffset or dOffset+vSize-1
 	self.mRot = mRot
 	self.xMax = xSize-1
 	self.yMax = ySize-1
-	self.dOfs = dOffset;
 	self.rOfs = rOffset;
+	self.dOfs = dOffset;
+	self.h2   = hSize-1+rOffset
+	self.v2   = vSize-1+dOffset
 
 -- reset sequence
 	if type==1 then
@@ -335,7 +344,7 @@ end
 
 function ST7735:cls()
 	self:resetWindow()
-	self:writeRam(0,0,"",self.hSize*self.vSize*2)
+	self:writeRamData("",self.hSize*self.vSize*2)
 	collectgarbage()
 end
 
@@ -351,9 +360,7 @@ function ST7735:pset(x,y,color)
 	if (x<0 or x>self.xMax) then return end
 	if (y<0 or y>self.yMax) then return end
 	local h,v = self:pTrans(x,y)
-	self:writeWord(0x2A,h+self.rOfs)
-	self:writeWord(0x2B,v+self.dOfs)
-	self:writeWord(0x2C,color)
+	self:writeRamWord(h,v,color)
 end
 
 function ST7735:line(x1,y1,x2,y2,color)
@@ -390,7 +397,8 @@ function ST7735:line(x1,y1,x2,y2,color)
 		h1,v1,h2,v2 = v1,h1,v2,h2
 		hn,vn = vn,hn
 	end
-	hd = (self.mx==0) and -1 or 1
+--	hd = (self.mx==0) and -1 or 1
+	hd = 1
 	if h1*hd>h2*hd then h1,v1,h2,v2 = h2,v2,h1,v1 end
 	vd = (v1<v2) and 1 or -1
 	hv = hd*vd*hn/vn
@@ -447,11 +455,11 @@ function ST7735:boxFill(x1,y1,x2,y2,color)
 			self:writeRam(h1,i,dat)
 		end
 	else
-		if not self.swp then self:setRamMode(0,0,1);v2=v1 end
+		if not self.swp then self:setRamMode(0,0,1);v1=v2 end
 		dat = string.rep(col,vn)
 		hd = (h1>h2) and -1 or 1
 		for i=h1,h2,hd do
-			self:writeRam(i,v2,dat)
+			self:writeRam(i,v1,dat)
 		end
 	end
 
@@ -543,7 +551,8 @@ function ST7735:put(x,y,bitmap)
 	if( x+bw>xMax+1 ) then bw=xMax+1-x end
 	if( y+bh>yMax+1 ) then bh,by=yMax+1-y,y+bh-yMax-1 end
 	h1,v2 = self:pTrans(x,y+bh-1)
-	hs = (self.mx==0) and 1 or -1
+--	hs = (self.mx==0) and 1 or -1
+	hs = -1
 	vs = hs
 	if self.swp then vs=0 else hs=0 end
 
@@ -587,7 +596,7 @@ function ST7735:put2(x,y,bitmap)
 	local y2 = y+bitmap.height-1
 	local h1,v1,h2,v2 = self:bTrans(x,y,x2,y2)
 	self:setWindow(h1,v1,h2,v2)
-	self:writeRam(h1,v2,bitmap.data)
+	self:writeRamData(bitmap.data)
 	self:resetWindow()
 	collectgarbage()
 end
@@ -641,7 +650,7 @@ function ST7735:print(str)
 		slen = slen - il
 		h1,v1,h2,v2 = self:bTrans(self.x,self.y,self.xMax,self.y+mg*fh-1)
 		self:setWindow(h1,v1,h2,v2)
-		if self.mx==0 then self:writeRamCmd(h1,v2) else	self:writeRamCmd(h2,v1) end
+--		if self.mx==0 then self:writeRamCmd(h1,v2) else	self:writeRamCmd(h2,v1) end
 
 		bk=1
 		for i=is,is+il-1 do
