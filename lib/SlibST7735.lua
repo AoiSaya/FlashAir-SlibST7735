@@ -2,16 +2,16 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/25 rev.0.07 debug rot
+-- 2018/10/27 rev.0.08
 -----------------------------------------------
 --[[
 Pin assign
-	PIO	 SPI	TYPE1	TYPE2	TYPE3
-CMD	0x01 DO 	SDA 	SDA		SDA
-D0	0x02 CLK	SCK 	SCK		SCK
-D1	0x04 CS 	A0		A0		A0
-D2	0x08 DI 	CS		CS		CS
-D3	0x10 RSV	RESET 	PIO		LED
+	PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4
+CMD	0x01 DO 	SDA 	SDA		SDA		SDA
+D0	0x02 CLK	SCK 	SCK		SCK		SCK
+D1	0x04 CS 	A0		A0		A0		A0
+D2	0x08 DI 	CS		CS		CS		PIO2
+D3	0x10 RSV	RESET 	PIO		LED		PIO
 --]]
 
 local ST7735 = {
@@ -33,6 +33,7 @@ dOfs  = 0;
 rOfs  = 0;
 ctrl  = 0x1F;
 piod  = 0x10;
+cshi  = 0x08;
 x	  = 0;
 y	  = 0;
 x0	  = 0;
@@ -277,10 +278,12 @@ end
 function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
-	self.type= type
+	self.type = type
+	self.cshi = type==4 and 0x00 or x008
 	self:ledOff()
 
 	if type==1 then self.ctrl=0x1F end
+	if type==4 then self.ctrl=0x17 end
 	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
 	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
 	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,1,false, 1,-1 end
@@ -314,7 +317,7 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 		sleep(1)
 		fa.pio(self.ctrl,0x00) -- RST=0,CS=0,RS=0
 		sleep(10)
-		fa.pio(self.ctrl,0x18) -- RST=1,CS=1,RS=0
+		fa.pio(self.ctrl,self.cshi+0x10) -- RST=1,CS=1,RS=0
 	end
 	self:writeByte(0x01,0x01) -- Software reset
 	sleep(120)
@@ -329,6 +332,8 @@ function ST7735:writeStart()
 		fa.spi("mode",0)
 		fa.spi("init",1)
 		fa.spi("bit",8)
+		fa.pio(self.ctrl,self.piod+self.cshi+0x04) -- CS=1,RS=1
+		sleep(1)self.
 		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
 		self.enable = true
 	end
@@ -337,7 +342,7 @@ end
 function ST7735:writeEnd()
 	if self.enable then
 		self:writeCmd(0x00)
-		fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
+		fa.pio(self.ctrl,self.piod+self.cshi+0x04) -- CS=1,RS=1
 		self.enable = falce
 	end
 end
@@ -703,9 +708,21 @@ function ST7735:pio(ctrl, data)
 	if self.type>1 then
 		self.ctrl = bit32.band(self.ctrl,0x0F)+ctrl*0x10
 		self.piod = data*0x10
-		dat = bit32.band(enable and 0x0C or 0x04)+self.piod
+		dat = (self.enable and 0x04 or self.cshi+0x04)+self.piod
 		s, ret = fa.pio(self.ctrl, dat)
 		ret = bit32.btest(ret,0x10) and 1 or 0
+	end
+
+	return ret
+end
+function ST7735:pio2(ctrl)
+	local dat,s,ret
+
+	if self.type==4 then
+		self.ctrl = bit32.band(self.ctrl,0x17)+ctrl*0x08
+		dat = 0x04+self.piod
+		s, ret = fa.pio(self.ctrl, dat)
+		ret = bit32.btest(ret,0x08) and 1 or 0
 	end
 
 	return ret
