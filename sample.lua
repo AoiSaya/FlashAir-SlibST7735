@@ -2,7 +2,7 @@
 -- Sample of SlibST7735.lua for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/25 rev.0.02
+-- 2018/11/01 rev.0.02
 -----------------------------------------------
 
 local script_path = function()
@@ -65,58 +65,13 @@ local COL_C = to64K(0x00FFFF) -- cyan
 local COL_Y = to64K(0xFFFF00) -- yellow
 local COL_W = to64K(0xFFFFFF) -- white
 
-for rot = 3,3 do
+for rot = 1,4 do
 --128x128
-	local mx,my,rOfs,dOfs
-	if rot==1 then mx,my,rOfs,dOfs = 128,128,2,1 end
-	if rot==2 then mx,my,rOfs,dOfs = 128,128,2,3 end
-	if rot==3 then mx,my,rOfs,dOfs = 128,128,2,3 end
-	if rot==4 then mx,my,rOfs,dOfs = 128,128,2,1 end
---
+	local mx,my,rOfs,dOfs = 128,128,2,1
+
 	lcd:init(1,rot,mx, my, rOfs, dOfs)
 	lcd:dspOn()
 	lcd:ledOn()
-
---[[
-	lcd:pset(10,20,COL_W)
-	lcd:line(0,0,16,127,COL_R)
-
-	local balloonBmp = bmp:loadFile(imgDir .. "balloon01.bmp",1)
-	local balloonImg = bmp:conv64K(balloonBmp)
-  	lcd:put(0,0,balloonImg)
-	lcd:put2(64,0,balloonImg)
---]]
-
---[[
-	lcd:pset(	0,	 0,COL_R)
-	lcd:pset(	0,my-1,COL_R)
-	lcd:pset(mx-1,	 0,COL_R)
-	lcd:pset(mx-1,my-1,COL_R)
---]]
---[[
-	lcd:line(0,   0,127,  0,COL_R)
-	lcd:line(0,   1,127,  1,COL_B)
-	lcd:line(0, 126,127,126,COL_R)
-	lcd:line(0, 127,127,127,COL_B)
---]]
---[[
-	lcd:line(  0, 0,  0,127,COL_R)
-	lcd:line(  1, 0,  1,127,COL_B)
-	lcd:line(126, 0,126,127,COL_R)
-	lcd:line(127, 0,127,127,COL_B)
---]]
---[[
-	lcd:boxFill(0,0,127,127,COL_R)
-	lcd:boxFill(2,1,126,126,COL_B)
---]]
---[[
-	lcd:circle(64,64,64,64,COL_R)
-	lcd:circle(64,64,62,62,COL_B)
---]]
---[[
-	lcd:circleFill(64,64,64,64,COL_R)
-	lcd:circleFill(64,64,62,62,COL_B)
---]]
 
 --[[
 -- color bar

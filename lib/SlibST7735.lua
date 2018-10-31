@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/31 rev.0.10 add duplicate
+-- 2018/11/01 rev.0.11 debug
 -----------------------------------------------
 --[[
 Pin assign
@@ -91,19 +91,20 @@ function ILI9163C:readData(cmd, bit)
 	local pio = fa.pio
 	local ctrl= self.ctrl
 	local piod= self.piod
+	local csod= self.csod
 	local bx  = bit32.extract
 	local bb  = bit32.band
 
 	for i=7,0,-1 do
 		dt = bx(cmd,i,1)
-		pio(ctrl,piod+0x00+dt) -- CS=0,RS=0,CLK=0
-		pio(ctrl,piod+0x02+dt) -- CS=0,RS=0,CLK=1
+		pio(ctrl,piod+csod+0x00+dt) -- CS=0,RS=0,CLK=0
+		pio(ctrl,piod+csod+0x02+dt) -- CS=0,RS=0,CLK=1
 	end
 	ctrl = ctrl-0x01
 	ret = 0
 	for i=1,bit do
-		pio(ctrl,piod+0x04) -- CS=0,RS=1,CLK=0,
-		s,dt = pio(ctrl,piod+0x06) -- CS=0,RS=1,CLK=1
+		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0,
+		s,dt = pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
 		ret = ret*2+bb(dt,0x01)
 	end
 
@@ -288,14 +289,11 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	self.type = type
 	self.csod = 0x08
 	self.piod = 0x10
-
+	self.ctrl = 0x1F
+	if type==2 then self.ctrl=0x0F end
+	if type==5 then self.ctrl=0x17 end
 	self:ledOff()
 
-	if type==1 then self.ctrl=0x1F end
-	if type==2 then self.ctrl=0x0F end
-	if type==3 then self.ctrl=0x1F end
-	if type==4 then self.ctrl=0x1F end
-	if type==5 then self.ctrl=0x1F end
 	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
 	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
 	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,1,false, 1,-1 end
@@ -343,7 +341,9 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 		sleep(5)
 	end
 --]]
+	self:writeStart()
 	self:writeByte(0x01,0x01) -- Software reset
+	self:writeEnd()
 	sleep(120)
 	self:setup()
 
@@ -763,14 +763,14 @@ function ST7735:pio(ctrl, data)
 end
 
 function ST7735:ledOn()
-	if type==3 then
+	if self.type==3 then
 		sleep(30)
 		self:pio(1,1)
 	end
 end
 
 function ST7735:ledOff()
-	if type==3 then
+	if self.type==3 then
 		self:pio(1,0)
 	end
 end
