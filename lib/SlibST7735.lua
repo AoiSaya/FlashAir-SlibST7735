@@ -2,16 +2,20 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/10/27 rev.0.08
+-- 2018/10/31 rev.0.10 add duplicate
 -----------------------------------------------
 --[[
 Pin assign
-	PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4
-CMD	0x01 DO 	SDA 	SDA		SDA		SDA
-D0	0x02 CLK	SCK 	SCK		SCK		SCK
-D1	0x04 CS 	A0		A0		A0		A0
-D2	0x08 DI 	CS		CS		CS		PIO2
-D3	0x10 RSV	RESET 	PIO		LED		PIO
+	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE5
+CLK  5
+CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA		SDA
+D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK		SCK
+D1	 8	0x04 CS 	A0		A0		A0		A0		A0
+D2	 9	0x08 DI 	CS		CS		CS		CS		(CS)
+D3	 1	0x10 RSV	RESET 	PIO		LED		(CS2)	CS2
+VCC  4
+VSS1 3
+VSS2 6
 --]]
 
 local ST7735 = {
@@ -33,7 +37,7 @@ dOfs  = 0;
 rOfs  = 0;
 ctrl  = 0x1F;
 piod  = 0x10;
-cshi  = 0x08;
+csod  = 0x08;
 x	  = 0;
 y	  = 0;
 x0	  = 0;
@@ -215,9 +219,10 @@ end
 function ST7735:setup()
 	self:writeStart()
 	self:writeCmd(0x11) --exit sleep
-	sleep(5)
-	self:writeByte(0x26, 0x04) --default gamma curve 3
-	self:writeByte(0xF2, 0x01) --Enable Gamma adj
+	sleep(120)
+	self:writeByte(0x26, 0x01) --default gamma curve 1
+--	self:writeByte(0xF2, 0x01) --Enable Gamma adj for ILI9163C
+--[[
 	self:writeCmd(0x13)
 	self:writeByte(0xB6, {0xFF,0x06})
 	self:writeByte(0xE0, --Positive Gamma Correction Setting
@@ -252,7 +257,8 @@ function ST7735:setup()
 		 0x2E, --p13
 		 0x34, --p14
 		 0x39}) --p15
-
+--]]
+--[[
 	self:writeByte(0xB1,	--Frame Rate Control (In normal mode/Full colors)
 		{0x08,	--0x0C//0x08
 		 0x02}) --0x14//0x08
@@ -265,6 +271,7 @@ function ST7735:setup()
 		{0x50, --0x50
 		 99}) --0x5b
 	self:writeByte(0xC7, 0) --0x40
+]]--
 	self:setRamMode(0, 0, 0)
 	self:resetWindow()
 	self:writeEnd()
@@ -279,16 +286,22 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
 	self.type = type
-	self.cshi = type==4 and 0x00 or x008
+	self.csod = 0x08
+	self.piod = 0x10
+
 	self:ledOff()
 
 	if type==1 then self.ctrl=0x1F end
-	if type==4 then self.ctrl=0x17 end
+	if type==2 then self.ctrl=0x0F end
+	if type==3 then self.ctrl=0x1F end
+	if type==4 then self.ctrl=0x1F end
+	if type==5 then self.ctrl=0x1F end
 	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
 	if rotate==1 then mv,mx,my,swp,hDrc,vDrc = 1,1,1,true, -1, 1 end
 	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,1,false, 1,-1 end
 	if rotate==3 then mv,mx,my,swp,hDrc,vDrc = 1,0,0,true, -1, 1 end
 
+   	dOffset = (my>0) and 132-ySize-dOffset or dOffset
 	hSize = swp and ySize or xSize
 	vSize = swp and xSize or ySize
 
@@ -311,14 +324,25 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	self.h2   = hSize-1+rOffset
 	self.v2   = vSize-1+dOffset
 
+	self.x	  = 0;
+	self.y	  = 0;
+	self.x0	  = 0;
+	self.fc	  = "\255\255";
+	self.bc	  = "\000\000";
+	self.font  = {};
+	self.mag   = 1;
+	self.enable= false;
+
 -- reset sequence
 	if type==1 then
 		fa.pio(self.ctrl,0x10) -- RST=1,CS=0,RS=0
 		sleep(1)
 		fa.pio(self.ctrl,0x00) -- RST=0,CS=0,RS=0
 		sleep(10)
-		fa.pio(self.ctrl,self.cshi+0x10) -- RST=1,CS=1,RS=0
+		fa.pio(self.ctrl,self.csod+0x10) -- RST=1,CS=1,RS=0
+		sleep(5)
 	end
+--]]
 	self:writeByte(0x01,0x01) -- Software reset
 	sleep(120)
 	self:setup()
@@ -327,14 +351,30 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	self:cls()
 end
 
+function ST7735:duplicate()
+	local new = {}
+	for k,v in pairs(self) do
+		new[k] = v
+	end
+
+	return new
+end
+
 function ST7735:writeStart()
 	if not self.enable then
 		fa.spi("mode",0)
 		fa.spi("init",1)
 		fa.spi("bit",8)
-		fa.pio(self.ctrl,self.piod+self.cshi+0x04) -- CS=1,RS=1
-		sleep(1)self.
-		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
+		if self.type==5 then
+			self:pio(1,1)
+			sleep(1)
+			self:pio(1,0)
+		else
+			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
+			sleep(1)
+			fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
+			self.csod=0x00
+		end
 		self.enable = true
 	end
 end
@@ -342,7 +382,12 @@ end
 function ST7735:writeEnd()
 	if self.enable then
 		self:writeCmd(0x00)
-		fa.pio(self.ctrl,self.piod+self.cshi+0x04) -- CS=1,RS=1
+		if self.type==5 then
+			self:pio(1,1)
+		else
+			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
+			self.csod=0x08
+		end
 		self.enable = falce
 	end
 end
@@ -355,6 +400,7 @@ end
 
 function ST7735:dspOn()
 	self:writeCmd(0x29)
+	sleep(120)
 end
 
 function ST7735:dspOff()
@@ -708,33 +754,25 @@ function ST7735:pio(ctrl, data)
 	if self.type>1 then
 		self.ctrl = bit32.band(self.ctrl,0x0F)+ctrl*0x10
 		self.piod = data*0x10
-		dat = (self.enable and 0x04 or self.cshi+0x04)+self.piod
+		dat = (self.enable and 0x04 or self.csod+0x04)+self.piod
 		s, ret = fa.pio(self.ctrl, dat)
 		ret = bit32.btest(ret,0x10) and 1 or 0
 	end
 
 	return ret
 end
-function ST7735:pio2(ctrl)
-	local dat,s,ret
-
-	if self.type==4 then
-		self.ctrl = bit32.band(self.ctrl,0x17)+ctrl*0x08
-		dat = 0x04+self.piod
-		s, ret = fa.pio(self.ctrl, dat)
-		ret = bit32.btest(ret,0x08) and 1 or 0
-	end
-
-	return ret
-end
 
 function ST7735:ledOn()
-	sleep(30)
-	self:pio(1,1)
+	if type==3 then
+		sleep(30)
+		self:pio(1,1)
+	end
 end
 
 function ST7735:ledOff()
-	self:pio(1,0)
+	if type==3 then
+		self:pio(1,0)
+	end
 end
 
 collectgarbage()
