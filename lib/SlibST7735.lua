@@ -2,53 +2,23 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/01 rev.0.11 debug
+-- 2018/11/02 rev.0.12 add spi function
 -----------------------------------------------
 --[[
 Pin assign
-	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE5
+	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE21	TYPE22
 CLK  5
-CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA		SDA
-D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK		SCK
-D1	 8	0x04 CS 	A0		A0		A0		A0		A0
-D2	 9	0x08 DI 	CS		CS		CS		CS		(CS)
-D3	 1	0x10 RSV	RESET 	PIO		LED		(CS2)	CS2
+CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA/DO	 SDA	SDA
+D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK/CLK	 SCK	SCK
+D1	 8	0x04 CS 	A0		A0		A0		A0 /--	 A0		A0
+D2	 9	0x08 DI 	CS		CS		CS		CS /DI	 CS		(CS)
+D3	 1	0x10 RSV	RESET 	PIO		LED		-- /CS2	 (CS2)	CS2
 VCC  4
 VSS1 3
 VSS2 6
 --]]
 
-local ST7735 = {
-type  = 1;
-mvDef = 0;
-mv	  = 0;
-mx	  = 0;
-my	  = 0;
-swp   = false;
-xMax  = 176-1;
-yMax  = 220-1;
-hSize = 176;
-vSize = 220;
-hDrc  = 1;
-vDrc  = 1;
-hOfs  = 0;
-vOfs  = 0;
-dOfs  = 0;
-rOfs  = 0;
-ctrl  = 0x1F;
-piod  = 0x10;
-csod  = 0x08;
-x	  = 0;
-y	  = 0;
-x0	  = 0;
-h2	  = 176-1;
-v2	  = 220-1;
-fc	  = "\255\255";
-bc	  = "\000\000";
-font  = {};
-mag   = 1;
-enable= false;
-}
+local ST7735 = {}
 
 --[Low layer functions]--
 
@@ -85,9 +55,9 @@ function ST7735:writeCmd(cmd)
 	spi("cs",1)
 end
 
---[[
-function ILI9163C:readData(cmd, bit)
-	local i, s, dt, ret
+---[[
+function ST7735:readData(cmd, num, bit)
+	local i, s, dt, val, tbl
 	local pio = fa.pio
 	local ctrl= self.ctrl
 	local piod= self.piod
@@ -95,20 +65,37 @@ function ILI9163C:readData(cmd, bit)
 	local bx  = bit32.extract
 	local bb  = bit32.band
 
+	bit = bit or 8
+
+	self:writeStart()
 	for i=7,0,-1 do
 		dt = bx(cmd,i,1)
 		pio(ctrl,piod+csod+0x00+dt) -- CS=0,RS=0,CLK=0
 		pio(ctrl,piod+csod+0x02+dt) -- CS=0,RS=0,CLK=1
 	end
 	ctrl = ctrl-0x01
-	ret = 0
-	for i=1,bit do
-		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0,
-		s,dt = pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
-		ret = ret*2+bb(dt,0x01)
+	pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+	if bit~=8 then
+		pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
+		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
 	end
 
-	return ret
+	tbl = {}
+	for i=1,num do
+		val = 0
+		for j=1,bit do
+			pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+			s,dt = pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
+			val = val*2+bb(dt,0x01)
+		end
+		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+		tbl[i] = val
+	end
+	pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
+	pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+
+	self:writeStart()
+	return tbl
 end
 --]]
 
@@ -221,7 +208,7 @@ function ST7735:setup()
 	self:writeStart()
 	self:writeCmd(0x11) --exit sleep
 	sleep(120)
-	self:writeByte(0x26, 0x01) --default gamma curve 1
+	self:writeByte(0x26, 0x04) --gamma curve 3
 --	self:writeByte(0xF2, 0x01) --Enable Gamma adj for ILI9163C
 --[[
 	self:writeCmd(0x13)
@@ -278,20 +265,49 @@ function ST7735:setup()
 	self:writeEnd()
 end
 
+function ST7735:spiSub(func,data,num)
+	local ctrl = self.ctrl
+	local enable = self.enable
+	local spi=fa.spi
+	local res
+
+	if self.type~=4 then
+		return nil
+	end
+	self:writeEnd()
+	ctrl = ctrl-0x08
+	fa.pio(ctrl,self.piod+0x0C) -- CS=Hz,RS=1
+	spi("mode",self.spiMode)
+	spi("init",self.spiPeriod)
+	spi("bit",self.spiBit)
+	self:pio(1,0)
+	if func==0 then
+		res = spi("write",data,num)
+	else
+		res = spi("read",data,num)
+	end
+	self:pio(1,1)
+	if enable then
+		self:writeStart()
+	end
+
+	return	res
+end
+
 --[For user functions]--
 
 -- type: 1:D3=RST=H/L, 2:D3=Hi-Z(no hard reset)
 -- rotate: 0:upper pin1, 1:upper pin5, 2:lower pin1, 3:lower pin11
 
-function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
+function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
 	self.type = type
 	self.csod = 0x08
 	self.piod = 0x10
 	self.ctrl = 0x1F
-	if type==2 then self.ctrl=0x0F end
-	if type==5 then self.ctrl=0x17 end
+	if type==2	then self.ctrl=0x0F end
+	if type==22 then self.ctrl=0x17 end
 	self:ledOff()
 
 	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
@@ -299,7 +315,11 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	if rotate==2 then mv,mx,my,swp,hDrc,vDrc = 0,0,1,false, 1,-1 end
 	if rotate==3 then mv,mx,my,swp,hDrc,vDrc = 1,0,0,true, -1, 1 end
 
-   	dOffset = (my>0) and 132-ySize-dOffset or dOffset
+	if gm==3 then
+		dOffset = (my>0) and 160-ySize-dOffset or dOffset
+	else
+	   	dOffset = (my>0) and 132-ySize-dOffset or dOffset
+	end
 	hSize = swp and ySize or xSize
 	vSize = swp and xSize or ySize
 
@@ -317,19 +337,22 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 	self.mRot = mRot
 	self.xMax = xSize-1
 	self.yMax = ySize-1
-	self.rOfs = rOffset;
-	self.dOfs = dOffset;
+	self.rOfs = rOffset
+	self.dOfs = dOffset
 	self.h2   = hSize-1+rOffset
 	self.v2   = vSize-1+dOffset
 
-	self.x	  = 0;
-	self.y	  = 0;
-	self.x0	  = 0;
-	self.fc	  = "\255\255";
-	self.bc	  = "\000\000";
-	self.font  = {};
-	self.mag   = 1;
-	self.enable= false;
+	self.x	  = 0
+	self.y	  = 0
+	self.x0	  = 0
+	self.fc	  = "\255\255"
+	self.bc	  = "\000\000"
+	self.font  = {}
+	self.mag   = 1
+	self.enable= false
+	self.spiPeriod = 1000
+	self.spiMode   = 0
+	self.spiBit    = 8
 
 -- reset sequence
 	if type==1 then
@@ -349,6 +372,7 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset)
 
 	self:writeStart()
 	self:cls()
+	collectgarbage()
 end
 
 function ST7735:duplicate()
@@ -356,33 +380,30 @@ function ST7735:duplicate()
 	for k,v in pairs(self) do
 		new[k] = v
 	end
+	collectgarbage()
 
 	return new
 end
 
 function ST7735:writeStart()
-	if not self.enable then
-		fa.spi("mode",0)
-		fa.spi("init",1)
-		fa.spi("bit",8)
-		if self.type==5 then
-			self:pio(1,1)
-			sleep(1)
-			self:pio(1,0)
-		else
-			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
-			sleep(1)
-			fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
-			self.csod=0x00
-		end
-		self.enable = true
+	fa.spi("mode",0)
+	fa.spi("init",1)
+	fa.spi("bit",8)
+	if self.type==22 then
+		self:pio(1,1)
+		self:pio(1,0)
+	else
+		fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
+		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
+		self.csod=0x00
 	end
+	self.enable = true
 end
 
 function ST7735:writeEnd()
 	if self.enable then
 		self:writeCmd(0x00)
-		if self.type==5 then
+		if self.type==22 then
 			self:pio(1,1)
 		else
 			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
@@ -773,6 +794,20 @@ function ST7735:ledOff()
 	if self.type==3 then
 		self:pio(1,0)
 	end
+end
+
+function ST7735:spiInit(period,mode,bit)
+	self.spiPeriod = period
+	self.spiMode   = mode
+	self.spiBit    = bit
+end
+
+function ST7735:spiWrite(data,num)
+	return self.spiSub(0,data,sum)
+end
+
+function ST7735:spiRead(data,num)
+	return self.spiSub(1,data,sum)
 end
 
 collectgarbage()
