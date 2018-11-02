@@ -2,17 +2,17 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/02 rev.0.12 add spi function
+-- 2018/11/03 rev.0.13 add TYPE4 support
 -----------------------------------------------
 --[[
 Pin assign
-	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE21	TYPE22
+	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE21	TYPE22	TYPE23
 CLK  5
-CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA/DO	 SDA	SDA
-D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK/CLK	 SCK	SCK
-D1	 8	0x04 CS 	A0		A0		A0		A0 /--	 A0		A0
-D2	 9	0x08 DI 	CS		CS		CS		CS /DI	 CS		(CS)
-D3	 1	0x10 RSV	RESET 	PIO		LED		-- /CS2	 (CS2)	CS2
+CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA/DO	SDA		SDA		SDA
+D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK/CLK	SCK		SCK		SCK
+D1	 8	0x04 CS 	A0		A0		A0		A0 /--	A0		A0		A0
+D2	 9	0x08 DI 	CS		CS		CS		CS /DI	CS		(CS)	CS
+D3	 1	0x10 RSV	RESET 	PIO		LED		-- /CS2	(CS2)	CS2		CS2
 VCC  4
 VSS1 3
 VSS2 6
@@ -266,7 +266,6 @@ function ST7735:setup()
 end
 
 function ST7735:spiSub(func,data,num)
-	local ctrl = self.ctrl
 	local enable = self.enable
 	local spi=fa.spi
 	local res
@@ -275,8 +274,7 @@ function ST7735:spiSub(func,data,num)
 		return nil
 	end
 	self:writeEnd()
-	ctrl = ctrl-0x08
-	fa.pio(ctrl,self.piod+0x0C) -- CS=Hz,RS=1
+	fa.pio(self.ctrl,self.piod+0x0C) -- CS=Hz,RS=1
 	spi("mode",self.spiMode)
 	spi("init",self.spiPeriod)
 	spi("bit",self.spiBit)
@@ -287,8 +285,8 @@ function ST7735:spiSub(func,data,num)
 		res = spi("read",data,num)
 	end
 	self:pio(1,1)
-	if enable then
-		self:writeStart()
+	if enable>0 then
+		self:writeStart(enable)
 	end
 
 	return	res
@@ -305,9 +303,18 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	self.type = type
 	self.csod = 0x08
 	self.piod = 0x10
+	self.csmd = 0
 	self.ctrl = 0x1F
-	if type==2	then self.ctrl=0x0F end
-	if type==22 then self.ctrl=0x17 end
+
+	if type==4 or type==21 or type==22 or type==23 then
+		self.csmd = 1
+		self.ctrl = 0x17
+	end
+	if type==2	then
+		self.csmd = 0
+		self.ctrl = 0x0F
+	end
+
 	self:ledOff()
 
 	if rotate==0 then mv,mx,my,swp,hDrc,vDrc = 0,1,0,false, 1,-1 end
@@ -349,7 +356,7 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	self.bc	  = "\000\000"
 	self.font  = {}
 	self.mag   = 1
-	self.enable= false
+	self.enable= 0
 	self.spiPeriod = 1000
 	self.spiMode   = 0
 	self.spiBit    = 8
@@ -385,31 +392,46 @@ function ST7735:duplicate()
 	return new
 end
 
-function ST7735:writeStart()
+function ST7735:writeStart(enable)
+	if self.type==23 then
+		enable = enable or 3
+	elseif self.type==22 then
+		enable = 2
+	else
+		enable = 1
+	end
+	if self.csmd==1 then self.ctrl = 0x17 end
+	fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
+	self:pio(1,1)
+
 	fa.spi("mode",0)
 	fa.spi("init",1)
 	fa.spi("bit",8)
-	if self.type==22 then
-		self:pio(1,1)
+	if enable==2 or enable==3 then
 		self:pio(1,0)
-	else
-		fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
-		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
-		self.csod=0x00
 	end
-	self.enable = true
+	if enable==1 or enable==3 then
+		self.ctrl = 0x1F
+		self.csod=0x00
+		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
+	end
+	self.enable = enable
 end
 
 function ST7735:writeEnd()
-	if self.enable then
+	local enable = self.enable
+
+	if enable>0 then
 		self:writeCmd(0x00)
-		if self.type==22 then
+		if enable==2 or enable==3 then
 			self:pio(1,1)
-		else
+		end
+		if enable==1 or enable==3 then
+			if self.csmd==1 then self.ctrl = 0x17 end
 			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
 			self.csod=0x08
 		end
-		self.enable = falce
+		self.enable = 0
 	end
 end
 
@@ -775,7 +797,7 @@ function ST7735:pio(ctrl, data)
 	if self.type>1 then
 		self.ctrl = bit32.band(self.ctrl,0x0F)+ctrl*0x10
 		self.piod = data*0x10
-		dat = (self.enable and 0x04 or self.csod+0x04)+self.piod
+		dat = self.piod+self.csod+0x04
 		s, ret = fa.pio(self.ctrl, dat)
 		ret = bit32.btest(ret,0x10) and 1 or 0
 	end
