@@ -1,3 +1,5 @@
+Under construction
+
 # FlashAir-SlibST7735
 
 Lua library for TFT display modules with ST7735 for FlashAir.  
@@ -8,63 +10,160 @@ Lua library for TFT display modules with ST7735 for FlashAir.
 Tested on the following TFT display module and FlashAir W-04 v4.00.03.
  1.8inch with ST7735 
 
-<img src="img/ILI9225front01.jpg" width="300"> <img src="img/ILI9225back01.jpg" width="300">
+<img src="img/ST7735front01.jpg" width="300"> <img src="img/ST7735back01.jpg" width="300">
 
 ## FlashAir to TFT module connections
 
 Please choose your favorite type.
 
-**Type1**  
+**Rename table**
+
+this text | module pin
+--- | ---
+SCL| CLK or SCK
+SDA| SDI or SDA
+DCX| RS or  A0
+CSX| CS
+RESX|RST or RESET
+LED| LED
+GND| GND
+VCC| VCC
+
+  
+**Type list**  
+
+PIN     |TYPE1|TYPE2|TYPE3|TYPE4|TYPE21|TYPE22|TYPE23|
+--- | --- | --- | --- | --- | --- | --- | ---
+---     |w/Reset|w/LED|w/PIO|w/SPI|primaly|secondry|twin|
+CMD (2) |SDA |SDA |SDA |SDA/DO |SDA   |SDA  |SDA
+DAT0(7) |SCL |SCL |SCL |SCL/CLK|SCL   |SCL  |SCL
+DAT1(8) |DCX |DCX |DCX |DCX/-- |DCX   |DCX  |DCX
+DAT2(9) |CSX |CSX |CSX |CSX/DI |CSX   |(CSX)|CSX
+DAT3(1) |RESX|LED |PIO |-- /CS |(CSX2)|CSX2 |CSX2
+
+*TYPE21,TYPE22,TYPE23 for two display*
+
+**Type1**
 Module Reset is hard reset.  
 
-ILI9225 TFT | FlashAir(Pin#) | Power
---- | --- | ---
---- |CLK (5) |Pull-down(10korm) to GND
-SDI |CMD (2) |
-CLK |DAT0(7) |
-RS  |DAT1(8) |
-CS  |DAT2(9) |
-RST |DAT3(1) |
-LED |---     |3.3V
-VCC |VCC (4) |3.3V   
-GND |VSS(3,6)|GND    
+FlashAir(Pin#) | ST7735 TFT | Power | comment
+--- | --- | --- | ---
+CLK (5) |--- |Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |RESX|
+---     |LED |3.3V
+VCC (4) |VCC |3.3V   
+VSS(3,6)|GND |GND    
 
 **Type2**  
 Module reset is only a soft reset.  
-DAT3 of FlashAir can be used for PIO.  
+DAT3 of FlashAir for LED backlight on/off control.  
 
-ILI9225 TFT | FlashAir(Pin#) | Power | comment
+FlashAir(Pin#) | ST7735 TFT | Power | comment
 --- | --- | --- | ---
---- |CLK (5) |Pull-down(10korm) to GND
-SDI |CMD (2) |
-CLK |DAT0(7) |
-RS  |DAT1(8) |
-CS  |DAT2(9) |
---- |DAT3(1) | |PIO
-RST |---     |Pull-up(10korm) to 3.3V
-LED |---     |3.3V
-VCC |VCC (4) |3.3V   
-GND |VSS(3,6)|GND    
+CLK (5) |--- |Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |LED |
+---     |RESX|Pull-up(10korm) to 3.3V
+---     |LED |3.3V
+VCC (4) |VCC |3.3V
+VSS(3,6)|GND |GND 
 
 **Type3**  
 Module reset is only a soft reset.  
-DAT3 of FlashAir for LED backlight on/off control.  
+DAT3 of FlashAir can be used for PIO.  
 
-ILI9225 TFT | FlashAir(Pin#) | Power | comment
+FlashAir(Pin#) | ST7735 TFT | Power | comment
 --- | --- | --- | ---
---- |CLK (5) |Pull-down(10korm) to GND
-SDI |CMD (2) |
-CLK |DAT0(7) |
-RS  |DAT1(8) |
-CS  |DAT2(9) |
-LED |DAT3(1) | |connect through 10kohm
-RST |---     |Pull-up(10korm) to 3.3V
-VCC |VCC (4) |3.3V
-GND |VSS(3,6)|GND
+CLK (5) |--- |Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |PIO |
+---     |RESX|Pull-up(10korm) to 3.3V
+---     |LED |3.3V
+VCC (4) |VCC |3.3V
+VSS(3,6)|GND |GND
+
+**Type4**  
+Module reset is only a soft reset.  
+CMD,DAT0,DAT2,DAT3 can be used for SPI.
+
+FlashAir(Pin#) | ST7735 TFT | SPI device | Power | comment
+--- | --- | --- | --- | ---
+CLK (5) |--- |---| Pull-down(10korm) to GND
+CMD (2) |SDA |DO |
+DAT0(7) |SCL |CLK|
+DAT1(8) |DCX |---|
+DAT2(9) |CSX |DI |
+DAT3(1) |--- |CS |
+---     |RESX|---| Pull-up(10korm) to 3.3V
+---     |LED |---| 3.3V
+VCC (4) |VCC |VCC| 3.3V
+VSS(3,6)|GND |GND| GND
+
+**Type21**
+Module reset is only a soft reset.  
+If you want to connect two display then use this for primaly display.
+
+FlashAir(Pin#) | ST7735 TFT | Power | comment
+--- | --- | --- | ---
+CLK (5) |--- | Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |(CS2X)|
+---     |RESX| Pull-up(10korm) to 3.3V
+---     |LED | 3.3V
+VCC (4) |VCC | 3.3V
+VSS(3,6)|GND | GND
+
+**Type22**
+Module reset is only a soft reset.  
+If you want to connect two display then use this for secondly display.
+
+FlashAir(Pin#) | ST7735 TFT | Power | comment
+--- | --- | --- | ---
+CLK (5) |--- | Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |(CS2X)|
+---     |RESX| Pull-up(10korm) to 3.3V
+---     |LED | 3.3V
+VCC (4) |VCC | 3.3V
+VSS(3,6)|GND | GND
+
+**Type23**
+Module reset is only a soft reset.  
+If you want to connect dual display then use this for twin display.
+You can draw each or both.
+
+FlashAir(Pin#) | ST7735 TFT | Power | comment
+--- | --- | --- | ---
+CLK (5) |--- | Pull-down(10korm) to GND
+CMD (2) |SDA |
+DAT0(7) |SCL |
+DAT1(8) |DCX |
+DAT2(9) |CSX |
+DAT3(1) |CS2X|
+---     |RESX| Pull-up(10korm) to 3.3V
+---     |LED | 3.3V
+VCC (4) |VCC | 3.3V
+VSS(3,6)|GND | GND
 
 ## Install
 
-SlibILI9225.lua -- Copy to somewhere in Lua's search path.
+SlibST7735.lua -- Copy to somewhere in Lua's search path.
 
 ## Color format of functions
 
@@ -98,38 +197,42 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 ## Usage
 ### sample of init()
-<img src="img/ILI9225rotation01.jpg" width="800">
+<img src="img/ST7735rotation01.jpg" width="800">
 
 command | description
 --- | ---
-ILI9225:init(type,rotate,xSize,ySize,offset) | Parameter initialization and reset LCD module.<br>type: 1:D3=RST, 2:D3=PIO, 3:D3=LED<br>rotate: 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>xSize:LCD x size, ySize:LCD y size, offset:RAM address offset
-ILI9225:writeStart() | Enable control. (CS=0)
-ILI9225:writeEnd()   | Disable control. (CS=1)
-ILI9225:cls()        | Clear screen.
-ILI9225:dspOn()      | Display contents of RAM.
-ILI9225:dspOff()     | Do not display contents of RAM.
-ILI9225:pset(x,y,color) | Plot point at (x,y).
-ILI9225:line(x1,y1,x2,y2,color) | Plot line (x1,y1)-(x2,y2).
-ILI9225:box(x1,y1,x2,y2,color) | Plot box (x1,y1)-(x2,y2).
-ILI9225:boxFill(x1,y1,x2,y2,color) | Plot filled box (x1,y1)-(x2,y2).
-ILI9225:circle(x,y,xr,yr,color) | Plot circle of center(x,y), radius(xr,yr).
-ILI9225:circleFill(x,y,xr,yr,color) | Plot filled circle of center(x,y), radius(xr,yr).
-ILI9225:put(x,y,bitmap) | Put 16 or 24bpp bitmap at upper left coordinates with (x,y).
-ILI9225:put2(x,y,bitmap)| Put 16bpp flat bitmap faster at upper left coordinates with (x,y).
-ILI9225:locate(x,y,mag,color,bgcolor,font) | Locate cursor, set print area(x,y)-(xSize-1,ySize-1), attributions and font.<br>If you do not want to change any arguments you can substitute nil.
-x,y=ILI9225:print(str) | Print alphabets and return next cursor position.
-x,y=ILI9225:println(str) | Print alphabets, creates a new line and return next cursor position.
-ret=ILI9225:pio(ctrl,data) | Pio control of DAT3 at type2. If type1 then return nil.<br>ctrl is 0:input, 1:output. data is value for output and return input value.<br> Default is input.
-ILI9225:ledOn() | LED backlight ON at type3.
-ILI9225:ledOff() | LED backlight OFF at type3.
+ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip) | Parameter initialization and reset LCD module.<br>type: 1:D3=RST, 2:D3=PIO, 3:D3=LED<br>rotate: 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>xSize:LCD x size, ySize:LCD y size<br>rOffset, dOffset:RAM address offset<br>gm:display type<br>xFlip:flip x-axis for second display
+ST7735:writeStart(flag) | Enable control.<br>flag: 1:primaly, 2:secondly, 3:both<br> Default is 2 for TYPE22, 3 for TYPE23, 1 for others.
+ST7735:writeEnd()   | Disable control.
+ST7735:cls()        | Clear screen.
+ST7735:dspOn()      | Display contents of RAM.
+ST7735:dspOff()     | Do not display contents of RAM.
+ST7735:pset(x,y,color) | Plot point at (x,y).
+ST7735:line(x1,y1,x2,y2,color) | Plot line (x1,y1)-(x2,y2).
+ST7735:box(x1,y1,x2,y2,color) | Plot box (x1,y1)-(x2,y2).
+ST7735:boxFill(x1,y1,x2,y2,color) | Plot filled box (x1,y1)-(x2,y2).
+ST7735:circle(x,y,xr,yr,color) | Plot circle of center(x,y), radius(xr,yr).
+ST7735:circleFill(x,y,xr,yr,color) | Plot filled circle of center(x,y), radius(xr,yr).
+ST7735:put(x,y,bitmap) | Put 16 or 24bpp bitmap at upper left coordinates with (x,y).
+ST7735:put2(x,y,bitmap)| Put 16bpp flat bitmap faster at upper left coordinates with (x,y).
+ST7735:locate(x,y,mag,color,bgcolor,font) | Locate cursor, set print area(x,y)-(xSize-1,ySize-1), attributions and font.<br>If you do not want to change any arguments you can substitute nil.
+x,y=ST7735:print(str) | Print alphabets and return next cursor position.
+x,y=ST7735:println(str) | Print alphabets, creates a new line and return next cursor position.
+ST7735:ledOn() | LED backlight ON at TYPE2.
+ST7735:ledOff() | LED backlight OFF at TYPE2.
+ret=ST7735:pio(ctrl,data) | Pio control of DAT3 at TYPE3.<br>ctrl: 0:input, 1:output. data: value for output<br>return: input value or nil at TYPE1<br>DAT3 default is input.
+ST7735:spiInit(period,mode,bit,cstype)|SPI init for TYPE4.<br>period,mode,bit are same as fa.spi(...)
+res = ST7735:spiWrite(data_num)<br>res = ST7735:spiWrite(data_str,xfer_num)|SPI write for TYPE4.<br>data_num,data_str,xfer_num and return are same as fa.spi("write", ...)
+res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI read for TYPE4.<br> xfer_num,data_num and return are same as fa.spi("read", ...)
+
 
 ## Sample program
 
-<img src="img/ILI9225sample01.jpg" width="250"> <img src="img/ILI9225mandelbrot01.jpg" width="250">
+<img src="img/ST7735sample01.jpg" width="250"> <img src="img/ST7735mandelbrot01.jpg" width="250">
 
 >sample.lua      `-- draw graphics demo`  
 >mandelbrot.lua  `-- draw Mandelbrot set`  
->lib/SlibILI9225.lua  
+>lib/SlibST7735.lua  
 >lib/SlibBMP.lua `-- Copy from FlashAir-SlibBMP repository`  
 >img/balloon01.bmp  
 >font/font74.lua  
