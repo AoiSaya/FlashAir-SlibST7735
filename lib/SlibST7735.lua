@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/03 rev.0.13 add TYPE4 support
+-- 2018/11/04 rev.0.14 spi mode update
 -----------------------------------------------
 --[[
 Pin assign
@@ -55,13 +55,38 @@ function ST7735:writeCmd(cmd)
 	spi("cs",1)
 end
 
+function ST7735:pinCfg(cs2,cs,dc,ck,dt)
+	local	pinIo = self.pinIo
+	local	pinDt = self.pinDt
+	local	ba	  = bit32.band
+	local	data, mask
+	for i,d in ipairs({cs2,cs,dc,ck,dt}) do
+		if d<4 then
+			data =2^(5-i)
+			mask =-data-1
+			pinIo=ba(pinIo,mask)
+			pinDt=ba(pinDt,mask)
+			if d<2	then pinIo=pinIo+data end
+			if d==1 then pinDt=pinDt+data end
+		end
+	end
+
+	self.pinIo = pinIo
+	self.pinDt = pinDt
+
+	return pinIo,pinDt
+end
+
+function ST7735:pinSet(cs2,cs,rs,ck,dt)
+	local pinIo,pinDt = self:pinCfg(cs2,cs,dc,ck,dt)
+	s,dt = fa.pio(pinIo,pinDt)
+
+	return s,dt
+end
+
 ---[[
 function ST7735:readData(cmd, num, bit)
 	local i, s, dt, val, tbl
-	local pio = fa.pio
-	local ctrl= self.ctrl
-	local piod= self.piod
-	local csod= self.csod
 	local bx  = bit32.extract
 	local bb  = bit32.band
 
@@ -70,29 +95,28 @@ function ST7735:readData(cmd, num, bit)
 	self:writeStart()
 	for i=7,0,-1 do
 		dt = bx(cmd,i,1)
-		pio(ctrl,piod+csod+0x00+dt) -- CS=0,RS=0,CLK=0
-		pio(ctrl,piod+csod+0x02+dt) -- CS=0,RS=0,CLK=1
+		self.pinSet(4,4,0,0,dt)
+		self.pinSet(4,4,0,1,dt)
 	end
-	ctrl = ctrl-0x01
-	pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+	self.pinSet(4,4,1,0,2)
 	if bit~=8 then
-		pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
-		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+		self.pinSet(4,4,1,1,2)
+		self.pinSet(4,4,1,0,2)
 	end
 
 	tbl = {}
 	for i=1,num do
 		val = 0
 		for j=1,bit do
-			pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
-			s,dt = pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
+			self.pinSet(4,4,1,0,2)
+			s,dt = self.pinSet(4,4,1,1,2)
 			val = val*2+bb(dt,0x01)
 		end
-		pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+		self.pinSet(4,4,1,0,2)
 		tbl[i] = val
 	end
-	pio(ctrl,piod+csod+0x06) -- CS=0,RS=1,CLK=1
-	pio(ctrl,piod+csod+0x04) -- CS=0,RS=1,CLK=0
+	self.pinSet(4,4,1,1,2)
+	self.pinSet(4,4,1,0,2)
 
 	self:writeStart()
 	return tbl
@@ -134,22 +158,39 @@ function ST7735:setRamMode(BGR,MDT,DRC)
 -- IFPF 3:12bit 5:16bit, 6:18bit
 -- MYXV 2:
 -- set GRAM writeWord direction and [7]MY,[6]MX,[5]MV,[4]ML,[3]RGB,[2]MH
-	local MY	= self.my
-	local MX	= self.mx
- 	local MV	= (self.mvDef+DRC)%2
+
+	local en,i2,i2,val
+
+	en = self.enable
+	i1,i2 = en,en
+	if en==3 then i1,i2 = 1,2 end
+
+	local MV	= (self.mvDef+DRC)%2
 	self.mv = MV
 	local ML	= 0
 	local RGB	= BGR
 	local MH	= 0
-	IFPF= 0x05
-	local val = MY * 0x80
-			  + MX * 0x40
-			  + MV * 0x20
-			  + ML * 0x10
-			  + RGB* 0x08
-			  + MH * 0x04
-	self:writeByte(0x36, val)
--- Interface Pixel Format [2:0]IFPF
+	local IFPF= 0x05
+
+	for i=i1,i2 do
+		local MY	= self.my
+		local MX	= self.mx
+		if i==2 then
+			MY = (MY+self.yFlip)%2
+			MX = (MX+self.xFlip)%2
+		end
+		val = MY * 0x80
+			+ MX * 0x40
+			+ MV * 0x20
+			+ ML * 0x10
+			+ RGB* 0x08
+			+ MH * 0x04
+		self:writeStart(i)
+		self:writeByte(0x36, val)
+	end
+	self:writeStart(en)
+
+	-- Interface Pixel Format [2:0]IFPF
 	local val = IFPF
 	self:writeByte(0x3A, val)
 end
@@ -259,14 +300,15 @@ function ST7735:setup()
 		{0x50, --0x50
 		 99}) --0x5b
 	self:writeByte(0xC7, 0) --0x40
-]]--
-	self:setRamMode(0, 0, 0)
+--]]
+	self:setRamMode(0,0,0)
 	self:resetWindow()
 	self:writeEnd()
 end
 
 function ST7735:spiSub(func,data,num)
-	local enable = self.enable
+	local en = self.enable
+	local cs = self.spiCstype
 	local spi=fa.spi
 	local res
 
@@ -274,19 +316,18 @@ function ST7735:spiSub(func,data,num)
 		return nil
 	end
 	self:writeEnd()
-	fa.pio(self.ctrl,self.piod+0x0C) -- CS=Hz,RS=1
+	self:pinSet(cs,2,1,0,0)
 	spi("mode",self.spiMode)
 	spi("init",self.spiPeriod)
 	spi("bit",self.spiBit)
-	self:pio(1,0)
 	if func==0 then
 		res = spi("write",data,num)
 	else
 		res = spi("read",data,num)
 	end
-	self:pio(1,1)
-	if enable>0 then
-		self:writeStart(enable)
+	self:pinSet(cs+1,4,4,4,4)
+	if en>0 then
+		self:writeStart(en)
 	end
 
 	return	res
@@ -297,22 +338,22 @@ end
 -- type: 1:D3=RST=H/L, 2:D3=Hi-Z(no hard reset)
 -- rotate: 0:upper pin1, 1:upper pin5, 2:lower pin1, 3:lower pin11
 
-function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
+function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
 	self.type = type
-	self.csod = 0x08
-	self.piod = 0x10
 	self.csmd = 0
-	self.ctrl = 0x1F
+	self.pinIo= 0x00
+	self.pinDt= 0x00
+	self:pinCfg(1,1,1,0,0)
 
 	if type==4 or type==21 or type==22 or type==23 then
 		self.csmd = 1
-		self.ctrl = 0x17
+		self:pinCfg(1,2,1,0,0)
 	end
 	if type==2	then
 		self.csmd = 0
-		self.ctrl = 0x0F
+		self:pinCfg(2,1,1,0,0)
 	end
 
 	self:ledOff()
@@ -325,18 +366,20 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	if gm==3 then
 		dOffset = (my>0) and 160-ySize-dOffset or dOffset
 	else
-	   	dOffset = (my>0) and 132-ySize-dOffset or dOffset
+		dOffset = (my>0) and 132-ySize-dOffset or dOffset
 	end
 	hSize = swp and ySize or xSize
 	vSize = swp and xSize or ySize
 
-	self.mvDef = mv
-	self.mx	 = mx
-	self.my	 = my
+	self.mvDef= mv
+	self.mx	  = mx
+	self.my	  = my
+	self.xFlip= xFlip or 0
+	self.yFlip= yFlip or 0
 
-	self.swp = swp
-	self.hSize = hSize
-	self.vSize = vSize
+	self.swp  = swp
+	self.hSize= hSize
+	self.vSize= vSize
 	self.hDrc = hDrc
 	self.vDrc = vDrc
 	self.hOfs = (hDrc>0) and rOffset or rOffset+hSize-1
@@ -354,8 +397,8 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	self.x0	  = 0
 	self.fc	  = "\255\255"
 	self.bc	  = "\000\000"
-	self.font  = {}
-	self.mag   = 1
+	self.font = {}
+	self.mag  = 1
 	self.enable= 0
 	self.spiPeriod = 1000
 	self.spiMode   = 0
@@ -363,14 +406,14 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 
 -- reset sequence
 	if type==1 then
-		fa.pio(self.ctrl,0x10) -- RST=1,CS=0,RS=0
+		self:pinSet(1,0,0,0,0)
 		sleep(1)
-		fa.pio(self.ctrl,0x00) -- RST=0,CS=0,RS=0
+		self:pinSet(0,0,0,0,0)
 		sleep(10)
-		fa.pio(self.ctrl,self.csod+0x10) -- RST=1,CS=1,RS=0
+		self:pinSet(1,0,0,0,0)
 		sleep(5)
+		self:pinSet(1,1,1,0,0)
 	end
---]]
 	self:writeStart()
 	self:writeByte(0x01,0x01) -- Software reset
 	self:writeEnd()
@@ -382,55 +425,36 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	collectgarbage()
 end
 
-function ST7735:duplicate()
-	local new = {}
-	for k,v in pairs(self) do
-		new[k] = v
-	end
-	collectgarbage()
-
-	return new
-end
-
 function ST7735:writeStart(enable)
-	if self.type==23 then
-		enable = enable or 3
-	elseif self.type==22 then
-		enable = 2
-	else
-		enable = 1
-	end
-	if self.csmd==1 then self.ctrl = 0x17 end
-	fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
-	self:pio(1,1)
+	local en = self.enable
+	local type = self.type
+	local cs, cs2
+
+	cs = (en==1 or en==3) and ((self.csmd==1) and 2 or 1) or 4
+	cs2= (en==2 or en==3) and 1 or 4
+	self:pinSet(cs2,cs,4,4,4)
 
 	fa.spi("mode",0)
 	fa.spi("init",1)
 	fa.spi("bit",8)
-	if enable==2 or enable==3 then
-		self:pio(1,0)
-	end
-	if enable==1 or enable==3 then
-		self.ctrl = 0x1F
-		self.csod=0x00
-		fa.pio(self.ctrl,self.piod+0x04) -- CS=0,RS=1
-	end
-	self.enable = enable
+	en = (type==22) and 2 or ((type==23) and (enable or 3) or 1)
+	cs = (en==1 or en==3) and 0 or 4
+	cs2= (en==2 or en==3) and 0 or 4
+	self:pinSet(cs2,cs,4,4,4)
+
+	self.enable = en
 end
 
 function ST7735:writeEnd()
-	local enable = self.enable
+	local en = self.enable
+	local cs,cs2
 
-	if enable>0 then
+	if en>0 then
 		self:writeCmd(0x00)
-		if enable==2 or enable==3 then
-			self:pio(1,1)
-		end
-		if enable==1 or enable==3 then
-			if self.csmd==1 then self.ctrl = 0x17 end
-			fa.pio(self.ctrl,self.piod+0x0C) -- CS=1,RS=1
-			self.csod=0x08
-		end
+		cs = (en==1 or en==3) and ((self.csmd==1) and 2 or 1) or 4
+		cs2= (en==2 or en==3) and 1 or 4
+		self:pinSet(cs2,cs,4,4,4)
+
 		self.enable = 0
 	end
 end
@@ -506,7 +530,7 @@ function ST7735:line(x1,y1,x2,y2,color)
 		self:writeRam(h,v,dat,(hb-ha)*hs)
 		ha = hb
 	end
-	self:setRamMode(0,0,0)
+	  self:setRamMode(0,0,0)
 	dat = nil
 	collectgarbage()
 end
@@ -795,11 +819,10 @@ function ST7735:pio(ctrl, data)
 	local dat,s,ret
 
 	if self.type>1 then
-		self.ctrl = bit32.band(self.ctrl,0x0F)+ctrl*0x10
-		self.piod = data*0x10
-		dat = self.piod+self.csod+0x04
-		s, ret = fa.pio(self.ctrl, dat)
-		ret = bit32.btest(ret,0x10) and 1 or 0
+		s,ret = self:pinSet(ctrl*2+data,4,4,4,4)
+		if s==1 then
+			ret = bit32.btest(ret,0x10) and 1 or 0
+		end
 	end
 
 	return ret
@@ -818,10 +841,11 @@ function ST7735:ledOff()
 	end
 end
 
-function ST7735:spiInit(period,mode,bit)
+function ST7735:spiInit(period,mode,bit,cstype)
 	self.spiPeriod = period
 	self.spiMode   = mode
 	self.spiBit    = bit
+	self.spiCstype = cstype or 0
 end
 
 function ST7735:spiWrite(data,num)
