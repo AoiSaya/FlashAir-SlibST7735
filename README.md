@@ -7,8 +7,8 @@ Lua library for TFT display modules with ST7735 for FlashAir.
 
 ## Tested equipment
 
-Tested on the following TFT display module and FlashAir W-04 v4.00.03.
- 1.8inch with ST7735 
+Tested on the following TFT display module and FlashAir W-04 v4.00.03.  
+ 1.44inch with ST7735 
 
 <img src="img/ST7735front01.jpg" width="300"> <img src="img/ST7735back01.jpg" width="300">
 
@@ -16,7 +16,7 @@ Tested on the following TFT display module and FlashAir W-04 v4.00.03.
 
 Please choose your favorite type.
 
-**Rename table**
+### Rename table
 
 this text | module pin
 --- | ---
@@ -28,9 +28,8 @@ RESX|RST or RESET
 LED| LED
 GND| GND
 VCC| VCC
-
-  
-**Type list**  
+ 
+### Type list
 
 PIN     |TYPE1|TYPE2|TYPE3|TYPE4|TYPE21|TYPE22|TYPE23|
 --- | --- | --- | --- | --- | --- | --- | ---
@@ -43,8 +42,8 @@ DAT3(1) |RESX|LED |PIO |-- /CS |(CSX2)|CSX2 |CSX2
 
 *TYPE21,TYPE22,TYPE23 for two display*
 
-**Type1**  
-Module Reset is hard reset.  
+### Type1  
+Module Reset is hardwere reset.  
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
 --- | --- | --- | ---
@@ -58,8 +57,7 @@ DAT3(1) |RESX|
 VCC (4) |VCC |3.3V   
 VSS(3,6)|GND |GND    
 
-**Type2**  
-Module reset is only a soft reset.  
+### Type2  
 DAT3 of FlashAir for LED backlight on/off control.  
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -75,8 +73,7 @@ DAT3(1) |LED |
 VCC (4) |VCC |3.3V
 VSS(3,6)|GND |GND 
 
-**Type3**  
-Module reset is only a soft reset.  
+### Type3  
 DAT3 of FlashAir can be used for PIO.  
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -92,8 +89,7 @@ DAT3(1) |PIO |
 VCC (4) |VCC |3.3V
 VSS(3,6)|GND |GND
 
-**Type4**  
-Module reset is only a soft reset.  
+### Type4  
 CMD,DAT0,DAT2,DAT3 can be used for SPI.
 
 FlashAir(Pin#) | ST7735 TFT | SPI device | Power | comment
@@ -102,15 +98,14 @@ CLK (5) |--- |---| Pull-down(10korm) to GND
 CMD (2) |SDA |DO |
 DAT0(7) |SCL |CLK|
 DAT1(8) |DCX |---|
-DAT2(9) |CSX |DI |
+DAT2(9) |CSX |DI | Pull-up(10korm) to 3.3V
 DAT3(1) |--- |CS |
 ---     |RESX|---| Pull-up(10korm) to 3.3V
 ---     |LED |---| 3.3V
 VCC (4) |VCC |VCC| 3.3V
 VSS(3,6)|GND |GND| GND
 
-**Type21**  
-Module reset is only a soft reset.  
+### Type21
 If you connect two displays, use this for primaly display.
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -119,15 +114,14 @@ CLK (5) |--- | Pull-down(10korm) to GND
 CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
-DAT2(9) |CSX |
+DAT2(9) |CSX | Pull-up(10korm) to 3.3V
 DAT3(1) |(CS2X)|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
 VCC (4) |VCC | 3.3V
 VSS(3,6)|GND | GND
 
-**Type22**  
-Module reset is only a soft reset.  
+### Type22  
 If you connect two displays, use this for secondly display.
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -136,15 +130,14 @@ CLK (5) |--- | Pull-down(10korm) to GND
 CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
-DAT2(9) |CSX |
+DAT2(9) |CSX | Pull-up(10korm) to 3.3V
 DAT3(1) |(CS2X)|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
 VCC (4) |VCC | 3.3V
 VSS(3,6)|GND | GND
 
-**Type23**  
-Module reset is only a soft reset.  
+### Type23  
 If you connect two identical displays, use this for twin display.
 You can draw each or both.
 
@@ -154,7 +147,7 @@ CLK (5) |--- | Pull-down(10korm) to GND
 CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
-DAT2(9) |CSX |
+DAT2(9) |CSX | Pull-up(10korm) to 3.3V
 DAT3(1) |CS2X|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
@@ -201,7 +194,7 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 command | description
 --- | ---
-ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,[xFlip]) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST, 2:D3=PIO, 3:D3=LED<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** display type<br>**xFlip:** flip x-axis for second display
+ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,[xFlip]) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST,  2:D3=LED, 3:D3=PIO, 4:with SPI, 21:primaly, 22:secondly, 23:twin <br> See module connections information.<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** module GM pad<br>**xFlip:** flip x-axis for second display
 ST7735:writeStart([flag]) | Enable control.<br>**flag:** 1:primaly, 2:secondly, 3:both<br>default is 2 at TYPE22, 3 at TYPE23, 1 at others.
 ST7735:writeEnd()   | Disable control.
 ST7735:cls()        | Clear screen.
@@ -221,17 +214,16 @@ x,y=ST7735:println(str) | Print alphabets, creates a new line and return next cu
 ST7735:ledOn() | LED backlight ON at TYPE2.
 ST7735:ledOff() | LED backlight OFF at TYPE2.
 ret=ST7735:pio(ctrl,data) | PIO control of DAT3 at TYPE3.<br>PIO default is input.<br>**ctrl:** 0:input, 1:output. data: value for output<br>**return:** input value or nil at TYPE1
-ST7735:spiInit(period,mode,bit,cstype)|SPI init for TYPE4.<br>**period,mode,bit:** same as fa.spi(...)
+ST7735:spiInit(period,mode,bit,cstype)|SPI init for TYPE4.<br>**period,mode,bit:** same as fa.spi(...)<br>**cstype:** 0:low enable, 1:high enable, 2:always High-Z
 res = ST7735:spiWrite(data_num)<br>res = ST7735:spiWrite(data_str,xfer_num)|SPI write for TYPE4.<br>**data_num,data_str,xfer_num,res:** same as fa.spi("write", ...)
 res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI read for TYPE4.<br>**xfer_num,data_num,res_num,res_tbl:** same as fa.spi("read", ...)
 
 
 ## Sample program
 
-<img src="img/ST7735sample01.jpg" width="250"> <img src="img/ST7735mandelbrot01.jpg" width="250">
+<img src="img/ST7735sample01.jpg" width="250">
 
 >sample.lua      `-- draw graphics demo`  
->mandelbrot.lua  `-- draw Mandelbrot set`  
 >lib/SlibST7735.lua  
 >lib/SlibBMP.lua `-- Copy from FlashAir-SlibBMP repository`  
 >img/balloon01.bmp  
