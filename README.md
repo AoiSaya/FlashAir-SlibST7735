@@ -43,7 +43,7 @@ DAT3(1) |RESX|LED |PIO |-- /CS |(CSX2)|CSX2 |CSX2
 
 *TYPE21,TYPE22,TYPE23 for two display*
 
-**Type1**
+**Type1**  
 Module Reset is hard reset.  
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -109,9 +109,9 @@ DAT3(1) |--- |CS |
 VCC (4) |VCC |VCC| 3.3V
 VSS(3,6)|GND |GND| GND
 
-**Type21**
+**Type21**  
 Module reset is only a soft reset.  
-If you want to connect two display then use this for primaly display.
+If you connect two displays, use this for primaly display.
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
 --- | --- | --- | ---
@@ -126,9 +126,9 @@ DAT3(1) |(CS2X)|
 VCC (4) |VCC | 3.3V
 VSS(3,6)|GND | GND
 
-**Type22**
+**Type22**  
 Module reset is only a soft reset.  
-If you want to connect two display then use this for secondly display.
+If you connect two displays, use this for secondly display.
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
 --- | --- | --- | ---
@@ -143,9 +143,9 @@ DAT3(1) |(CS2X)|
 VCC (4) |VCC | 3.3V
 VSS(3,6)|GND | GND
 
-**Type23**
+**Type23**  
 Module reset is only a soft reset.  
-If you want to connect dual display then use this for twin display.
+If you connect two identical displays, use this for twin display.
 You can draw each or both.
 
 FlashAir(Pin#) | ST7735 TFT | Power | comment
@@ -177,7 +177,7 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
     bitmap.header -- copyed from BMP header  
     bitmap.width  -- bitmap width  
     bitmap.height -- bitmap height  
-    bitmap.bit    -- bpp, 24 or 16(BBBBB_GGGGGG_RRRRR format)
+    bitmap.bit    -- bpp, 16(BBBBB_GGGGGG_RRRRR format)
     bitmap.flat   -- 1:Flat(Stuffing without leaving spaces for small image), 0:Stored in an array for each line.  
     bitmap.data   -- bitmap data  
 
@@ -201,8 +201,8 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 command | description
 --- | ---
-ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip) | Parameter initialization and reset LCD module.<br>type: 1:D3=RST, 2:D3=PIO, 3:D3=LED<br>rotate: 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>xSize:LCD x size, ySize:LCD y size<br>rOffset, dOffset:RAM address offset<br>gm:display type<br>xFlip:flip x-axis for second display
-ST7735:writeStart(flag) | Enable control.<br>flag: 1:primaly, 2:secondly, 3:both<br> Default is 2 for TYPE22, 3 for TYPE23, 1 for others.
+ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,[xFlip]) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST, 2:D3=PIO, 3:D3=LED<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** display type<br>**xFlip:** flip x-axis for second display
+ST7735:writeStart([flag]) | Enable control.<br>**flag:** 1:primaly, 2:secondly, 3:both<br>default is 2 at TYPE22, 3 at TYPE23, 1 at others.
 ST7735:writeEnd()   | Disable control.
 ST7735:cls()        | Clear screen.
 ST7735:dspOn()      | Display contents of RAM.
@@ -213,17 +213,17 @@ ST7735:box(x1,y1,x2,y2,color) | Plot box (x1,y1)-(x2,y2).
 ST7735:boxFill(x1,y1,x2,y2,color) | Plot filled box (x1,y1)-(x2,y2).
 ST7735:circle(x,y,xr,yr,color) | Plot circle of center(x,y), radius(xr,yr).
 ST7735:circleFill(x,y,xr,yr,color) | Plot filled circle of center(x,y), radius(xr,yr).
-ST7735:put(x,y,bitmap) | Put 16 or 24bpp bitmap at upper left coordinates with (x,y).
+ST7735:put(x,y,bitmap) | Put 16bpp bitmap at upper left coordinates with (x,y).
 ST7735:put2(x,y,bitmap)| Put 16bpp flat bitmap faster at upper left coordinates with (x,y).
 ST7735:locate(x,y,mag,color,bgcolor,font) | Locate cursor, set print area(x,y)-(xSize-1,ySize-1), attributions and font.<br>If you do not want to change any arguments you can substitute nil.
 x,y=ST7735:print(str) | Print alphabets and return next cursor position.
 x,y=ST7735:println(str) | Print alphabets, creates a new line and return next cursor position.
 ST7735:ledOn() | LED backlight ON at TYPE2.
 ST7735:ledOff() | LED backlight OFF at TYPE2.
-ret=ST7735:pio(ctrl,data) | Pio control of DAT3 at TYPE3.<br>ctrl: 0:input, 1:output. data: value for output<br>return: input value or nil at TYPE1<br>DAT3 default is input.
-ST7735:spiInit(period,mode,bit,cstype)|SPI init for TYPE4.<br>period,mode,bit are same as fa.spi(...)
-res = ST7735:spiWrite(data_num)<br>res = ST7735:spiWrite(data_str,xfer_num)|SPI write for TYPE4.<br>data_num,data_str,xfer_num and return are same as fa.spi("write", ...)
-res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI read for TYPE4.<br> xfer_num,data_num and return are same as fa.spi("read", ...)
+ret=ST7735:pio(ctrl,data) | PIO control of DAT3 at TYPE3.<br>PIO default is input.<br>**ctrl:** 0:input, 1:output. data: value for output<br>**return:** input value or nil at TYPE1
+ST7735:spiInit(period,mode,bit,cstype)|SPI init for TYPE4.<br>**period,mode,bit:** same as fa.spi(...)
+res = ST7735:spiWrite(data_num)<br>res = ST7735:spiWrite(data_str,xfer_num)|SPI write for TYPE4.<br>**data_num,data_str,xfer_num,res:** same as fa.spi("write", ...)
+res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI read for TYPE4.<br>**xfer_num,data_num,res_num,res_tbl:** same as fa.spi("read", ...)
 
 
 ## Sample program
