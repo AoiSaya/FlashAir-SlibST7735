@@ -8,9 +8,10 @@ Lua library for TFT display modules with ST7735 for FlashAir.
 ## Tested equipment
 
 Tested on the following TFT display module and FlashAir W-04 v4.00.03.  
- 1.44inch with ST7735 
+ 1.44inch with ST7735(gs=0)   1.44inch with ST7735(gs=3)
 
-<img src="img/ST7735front01.jpg" width="300"> <img src="img/ST7735back01.jpg" width="300">
+<img src="img/ST7735front01.jpg" width="200"> <img src="img/ST7735front02.jpg" width="200">  
+<img src="img/ST7735back01.jpg" width="200"> <img src="img/ST7735back02.jpg" width="200">
 
 ## FlashAir to TFT module connections
 
