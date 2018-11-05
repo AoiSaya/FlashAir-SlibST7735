@@ -192,13 +192,17 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 
 ## Usage
-### sample of init()
+### Sample of init()
 
  1.44inch with ST7735 V1.1 |
 --- |
 <img src="img/ST7735rotation01.jpg" width="800"> |
- 1.44inch with ST7735 V2.1 |
+
+1.44inch with ST7735 V2.1 |
+--- |
 <img src="img/ST7735rotation02.jpg" width="800"> |
+
+### Description of the command
 
 command | description
 --- | ---
