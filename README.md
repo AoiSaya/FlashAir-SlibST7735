@@ -26,7 +26,7 @@ this text | module pin
 SCL| CLK or SCK or SCL
 SDA| SDI or SDA
 DCX| RS  or A0  or DC
-CSX| CS
+CSX or CSX2| CS
 RESX|RST or RESET or RES
 LED| LED or LEDA  or BLK
 GND| GND 
@@ -118,7 +118,7 @@ CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
 DAT2(9) |CSX | Pull-up(10korm) to 3.3V
-DAT3(1) |(CS2X)|
+DAT3(1) |(CSX2)|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
 VCC (4) |VCC | 3.3V
@@ -133,8 +133,8 @@ CLK (5) |--- | Pull-down(10korm) to GND
 CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
-DAT2(9) |CSX | Pull-up(10korm) to 3.3V
-DAT3(1) |(CS2X)|
+DAT2(9) |(CSX)| Pull-up(10korm) to 3.3V
+DAT3(1) |CSX2|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
 VCC (4) |VCC | 3.3V
@@ -151,7 +151,7 @@ CMD (2) |SDA |
 DAT0(7) |SCL |
 DAT1(8) |DCX |
 DAT2(9) |CSX | Pull-up(10korm) to 3.3V
-DAT3(1) |CS2X|
+DAT3(1) |CSX2|
 ---     |RESX| Pull-up(10korm) to 3.3V
 ---     |LED | 3.3V
 VCC (4) |VCC | 3.3V
