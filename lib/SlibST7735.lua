@@ -2,17 +2,17 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/04 rev.0.14 spi mode update
+-- 2018/11/06 rev.0.15 spi mode update
 -----------------------------------------------
 --[[
 Pin assign
 	PIN PIO	 SPI	TYPE1	TYPE2	TYPE3	TYPE4	TYPE21	TYPE22	TYPE23
 CLK  5
 CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA/DO	SDA		SDA		SDA
-D0	 7	0x02 CLK	SCK 	SCK		SCK		SCK/CLK	SCK		SCK		SCK
-D1	 8	0x04 CS 	A0		A0		A0		A0 /--	A0		A0		A0
-D2	 9	0x08 DI 	CS		CS		CS		CS /DI	CS		(CS)	CS
-D3	 1	0x10 RSV	RESET 	PIO		LED		-- /CS2	(CS2)	CS2		CS2
+D0	 7	0x02 CLK	SCL 	SCL		SCL		SCL/CLK	SCL		SCL		SCL
+D1	 8	0x04 CSX 	DCX		DCX		DCX		DCX/--	DCX		DCX		DCX
+D2	 9	0x08 DI 	CSX		CSX		CSX		CSX/DI	CSX		(CSX)	CSX
+D3	 1	0x10 RSV	RESX 	LED		PIO		-- /CS	(CSX2)	CSX2	CSX2
 VCC  4
 VSS1 3
 VSS2 6
@@ -316,7 +316,7 @@ function ST7735:spiSub(func,data,num)
 		return nil
 	end
 	self:writeEnd()
-	self:pinSet(cs,2,1,0,0)
+	self:pinSet(cs,4,4,4,4)
 	spi("mode",self.spiMode)
 	spi("init",self.spiPeriod)
 	spi("bit",self.spiBit)
@@ -325,7 +325,8 @@ function ST7735:spiSub(func,data,num)
 	else
 		res = spi("read",data,num)
 	end
-	self:pinSet(cs+1,4,4,4,4)
+	cs = (cs==2) and 2 or 1-cs
+	self:pinSet(cs,4,4,4,4)
 	if en>0 then
 		self:writeStart(en)
 	end
@@ -334,9 +335,6 @@ function ST7735:spiSub(func,data,num)
 end
 
 --[For user functions]--
-
--- type: 1:D3=RST=H/L, 2:D3=Hi-Z(no hard reset)
--- rotate: 0:upper pin1, 1:upper pin5, 2:lower pin1, 3:lower pin11
 
 function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
@@ -351,7 +349,7 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 		self.csmd = 1
 		self:pinCfg(1,2,1,0,0)
 	end
-	if type==2	then
+	if type==3	then
 		self.csmd = 0
 		self:pinCfg(2,1,1,0,0)
 	end
@@ -829,31 +827,36 @@ function ST7735:pio(ctrl, data)
 end
 
 function ST7735:ledOn()
-	if self.type==3 then
+	if self.type==2 then
 		sleep(30)
 		self:pio(1,1)
 	end
 end
 
 function ST7735:ledOff()
-	if self.type==3 then
+	if self.type==2 then
 		self:pio(1,0)
 	end
 end
 
 function ST7735:spiInit(period,mode,bit,cstype)
+	if self.type~=4 then
+		return
+	end
 	self.spiPeriod = period
 	self.spiMode   = mode
 	self.spiBit    = bit
 	self.spiCstype = cstype or 0
+	local cs=(cstype==2) and 2 or 1-cstype
+	self:pinSet(cs,4,4,4,4)
 end
 
 function ST7735:spiWrite(data,num)
-	return self.spiSub(0,data,sum)
+	return self.spiSub(0,data,num)
 end
 
 function ST7735:spiRead(data,num)
-	return self.spiSub(1,data,sum)
+	return self.spiSub(1,data,num)
 end
 
 collectgarbage()
