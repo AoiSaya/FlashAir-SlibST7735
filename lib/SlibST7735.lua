@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/06 rev.0.15 spi mode update
+-- 2018/11/06 rev.0.16 exchange TYPE2 and TYPE3
 -----------------------------------------------
 --[[
 Pin assign
@@ -12,7 +12,7 @@ CMD  2	0x01 DO 	SDA 	SDA		SDA		SDA/DO	SDA		SDA		SDA
 D0	 7	0x02 CLK	SCL 	SCL		SCL		SCL/CLK	SCL		SCL		SCL
 D1	 8	0x04 CSX 	DCX		DCX		DCX		DCX/--	DCX		DCX		DCX
 D2	 9	0x08 DI 	CSX		CSX		CSX		CSX/DI	CSX		(CSX)	CSX
-D3	 1	0x10 RSV	RESX 	LED		PIO		-- /CS	(CSX2)	CSX2	CSX2
+D3	 1	0x10 RSV	RESX 	PIO		LED		-- /CS	(CSX2)	CSX2	CSX2
 VCC  4
 VSS1 3
 VSS2 6
@@ -349,7 +349,7 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 		self.csmd = 1
 		self:pinCfg(1,2,1,0,0)
 	end
-	if type==3	then
+	if type==2	then
 		self.csmd = 0
 		self:pinCfg(2,1,1,0,0)
 	end
@@ -827,14 +827,14 @@ function ST7735:pio(ctrl, data)
 end
 
 function ST7735:ledOn()
-	if self.type==2 then
+	if self.type==3 then
 		sleep(30)
 		self:pio(1,1)
 	end
 end
 
 function ST7735:ledOff()
-	if self.type==2 then
+	if self.type==3 then
 		self:pio(1,0)
 	end
 end
