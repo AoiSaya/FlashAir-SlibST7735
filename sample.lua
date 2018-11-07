@@ -2,8 +2,15 @@
 -- Sample of SlibST7735.lua for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/01 rev.0.02
+-- 2018/11/07 rev.0.03
 -----------------------------------------------
+function chkBreak()
+	sleep(0)
+	if fa.sharedmemory("read", 0x00, 0x01, "") == "!" then
+  	error("Break!",2)
+  end
+end
+fa.sharedmemory("write", 0x00, 0x01, "-")
 
 local script_path = function()
 	local  str = debug.getinfo(2, "S").source:sub(2)
@@ -65,15 +72,18 @@ local COL_C = to64K(0x00FFFF) -- cyan
 local COL_Y = to64K(0xFFFF00) -- yellow
 local COL_W = to64K(0xFFFFFF) -- white
 
-for rot = 1,4 do
---128x128
-	local mx,my,rOfs,dOfs = 128,128,2,1
+for rot = 0,3 do
+--128x128 red
+	local mx,my,rOfs,dOfs,gm = 128,128,2,1,0
 
-	lcd:init(1,rot,mx, my, rOfs, dOfs)
+--128x128 green
+--	local mx,my,rOfs,dOfs,gm = 128,128,0,0,3
+
+	lcd:init(1, rot, mx, my, rOfs, dOfs, gm)
 	lcd:dspOn()
 	lcd:ledOn()
 
---[[
+---[[
 -- color bar
 	for i=0,7 do
 		lcd:boxFill(i*mx/7,0,(i+1)*mx/7-1,my*8/12-1,to64K(cbar[i+1]))
@@ -89,9 +99,10 @@ for rot = 1,4 do
 		lcd:boxFill(5*mx/7+i*mx/21,my*9/12,5*mx/7+(i+1)*mx/21,my-1,to64K(cbar[i+19]))
 	end
 	lcd:boxFill(6*mx/7,my*9/12,mx-1,my-1,to64K(cbar[22]))
-	lcd:writeEnd()
-
+	lcd:box(0,0,mx-1,my-1,COL_W) -- for offset check
+	chkBreak()
 	sleep(1000)
+
 	local rnd = math.random
 	lcd:cls()
 	collectgarbage()
@@ -132,10 +143,11 @@ end
 	end
 
 --]]
---[[
+---[[
 --locate and print demo
 	n = 0x20
 	for i=0,21,7 do
+		chkBreak()
 		lcd:locate(0,i,1,nil,0x0000,font74)
 		for j=0, mx-1, 4 do
 			lcd:locate(nil,nil,nil,to64K(cbar[(i/7+j)%7+1]))
@@ -163,4 +175,3 @@ end
 	collectgarbage()
 --]]
 end
-
