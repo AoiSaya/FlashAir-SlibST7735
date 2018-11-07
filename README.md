@@ -206,7 +206,9 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 command | description
 --- | ---
-ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,[xFlip]) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST,  2:D3=LED, 3:D3=PIO, 4:with SPI, 21:primaly, 22:secondaly, 23:twin <br> See module connections information.<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** module GM pad<br>**xFlip:** flip x-axis for second display
+ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST,  2:D3=LED, 3:D3=PIO, 4:with SPI, 21:primaly, 22:secondaly, 23:twin <br> See module connections information.<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** module GM pad
+ST7735:flip(rFlip,dFlip) | Filp x-axis or y-axis for graphic writing.<br>**rFlip,dFlip:** 0:normal, 1:flip
+tbl=ST7735:duplicate() | Duplicate ST7735 library, if you use two deferent TFT module of ST7735 or rotation.<br>**return:** duplicated table of library.
 ST7735:writeStart([flag]) | Enable control.<br>**flag:** 1:primaly, 2:secondly, 3:both<br>default is 2 at TYPE22, 3 at TYPE23, 1 at others.
 ST7735:writeEnd()   | Disable control.
 ST7735:cls()        | Clear screen.
