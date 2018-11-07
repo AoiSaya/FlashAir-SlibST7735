@@ -2,13 +2,13 @@
 -- Sample of SlibST7735.lua for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/07 rev.0.03
+-- 2018/11/07 rev.0.04
 -----------------------------------------------
 function chkBreak()
 	sleep(0)
 	if fa.sharedmemory("read", 0x00, 0x01, "") == "!" then
-  	error("Break!",2)
-  end
+		error("Break!",2)
+	end
 end
 fa.sharedmemory("write", 0x00, 0x01, "-")
 
@@ -18,11 +18,11 @@ local script_path = function()
 end
 
 local to64K = function(dat)
-  local bx = bit32.extract
-  local r = bx(dat,19,5)
-  local g = bx(dat,10,6)
-  local b = bx(dat, 3,5)
-  return b*2048 + g*32 + r
+	local bx = bit32.extract
+	local r = bx(dat,19,5)
+	local g = bx(dat,10,6)
+	local b = bx(dat, 3,5)
+	return b*2048 + g*32 + r
 end
 
 -- main
@@ -81,7 +81,6 @@ for rot = 0,3 do
 
 	lcd:init(1, rot, mx, my, rOfs, dOfs, gm)
 	lcd:dspOn()
-	lcd:ledOn()
 
 ---[[
 -- color bar
