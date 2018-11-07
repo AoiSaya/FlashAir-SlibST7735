@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/07 rev.0.17 support flip
+-- 2018/11/07 rev.0.18 add duplicate
 -----------------------------------------------
 --[[
 Pin assign
@@ -426,6 +426,16 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	self:writeStart()
 	self:cls()
 	collectgarbage()
+end
+
+function ST7735:duplicate()
+	local new = {}
+	for k,v in pairs(self) do
+		new[k] = v
+	end
+	collectgarbage()
+
+	return new
 end
 
 function ST7735:writeStart(enable)
