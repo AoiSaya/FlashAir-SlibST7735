@@ -2,7 +2,7 @@
 -- SoraMame library of ST7735@65K for W4.00.03
 -- Copyright (c) 2018, Saya
 -- All rights reserved.
--- 2018/11/06 rev.0.16 exchange TYPE2 and TYPE3
+-- 2018/11/07 rev.0.17 support flip
 -----------------------------------------------
 --[[
 Pin assign
@@ -175,9 +175,12 @@ function ST7735:setRamMode(BGR,MDT,DRC)
 	for i=i1,i2 do
 		local MY	= self.my
 		local MX	= self.mx
-		if i==2 then
-			MY = (MY+self.yFlip)%2
-			MX = (MX+self.xFlip)%2
+		if i==1 then
+			MY = (MY+self.yFlip1)%2
+			MX = (MX+self.xFlip1)%2
+		else
+			MY = (MY+self.yFlip2)%2
+			MX = (MX+self.xFlip2)%2
 		end
 		val = MY * 0x80
 			+ MX * 0x40
@@ -336,7 +339,7 @@ end
 
 --[For user functions]--
 
-function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
+function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm)
 	local mv,mx,my,swp,hDrc,vDrc,hSize,vSize
 
 	self.type = type
@@ -372,8 +375,6 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 	self.mvDef= mv
 	self.mx	  = mx
 	self.my	  = my
-	self.xFlip= xFlip or 0
-	self.yFlip= yFlip or 0
 
 	self.swp  = swp
 	self.hSize= hSize
@@ -389,6 +390,10 @@ function ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm,xFlip,yFlip)
 	self.dOfs = dOffset
 	self.h2   = hSize-1+rOffset
 	self.v2   = vSize-1+dOffset
+	self.xFlip1= 0
+	self.yFlip1= 0
+	self.xFlip2= 0
+	self.yFlip2= 0
 
 	self.x	  = 0
 	self.y	  = 0
@@ -470,6 +475,20 @@ end
 
 function ST7735:dspOff()
 	self:writeCmd(0x28)
+end
+
+function ST7735:flip(rFlip,dFlip)
+	local en = self.enable
+	rFlip= rFlip or 0
+	dFlip= dFlip or 0
+
+	if en==1 or en==3 then
+		self.xFlip1,self.yFlip1=rFlip,dFlip
+	end
+	if en==2 or en==3 then
+		self.xFlip2,self.yFlip2=rFlip,dFlip
+	end
+	self:setRamMode(0,0,0)
 end
 
 function ST7735:pset(x,y,color)
@@ -847,7 +866,7 @@ function ST7735:spiInit(period,mode,bit,cstype)
 	self.spiMode   = mode
 	self.spiBit    = bit
 	self.spiCstype = cstype or 0
-	local cs=(cstype==2) and 2 or 1-cstype
+	local cs = (cstype==2) and 2 or 1-cstype
 	self:pinSet(cs,4,4,4,4)
 end
 
