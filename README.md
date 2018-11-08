@@ -1,5 +1,3 @@
-Under construction
-
 # FlashAir-SlibST7735
 
 Lua library for TFT display modules with ST7735 for FlashAir.  
@@ -235,11 +233,13 @@ res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI re
 
 ## Sample program
 
-<img src="img/ST7735sample01.jpg" width="250">
+<img src="img/ST7735sample01.jpg" width="250"> <img src="img/ST7735sample02.jpg" width="250">
 
->sample.lua      `-- draw graphics demo`  
+>sample.lua       `-- draw graphics demo`  
+>sample_dual.lua  `-- graphics demo of twin LCD`  
+>sample_eyes.lua  `-- Caterpillar eyes move demo of twin LCD`  
 >lib/SlibST7735.lua  
->lib/SlibBMP.lua `-- Copy from FlashAir-SlibBMP repository`  
+>lib/SlibBMP.lua  `-- Copy from FlashAir-SlibBMP repository`  
 >img/balloon01.bmp  
 >font/font74.lua  
 
