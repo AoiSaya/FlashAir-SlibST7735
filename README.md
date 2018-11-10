@@ -1,7 +1,8 @@
 # FlashAir-SlibST7735
 
 Lua library for TFT display modules with ST7735 for FlashAir.  
-<img src="img/ST7735connect01.jpg" width="500">
+<img src="img/ST7735connect02.jpg" width="300"> <img src="img/ST7735connect01.jpg" width="300">
+
 
 ## Tested equipment
 
@@ -9,7 +10,7 @@ Tested on the following TFT display module and FlashAir W-04 v4.00.03.
 
  1.44inch with ST7735 V1.1 |  1.44inch with ST7735 V2.1
 --- | ---
-128*128 gs=0 | 128*128 gs=3
+128*128 offset=(2,1) gs=0 | 128*128 offset=(0,0) gs=3 
 <img src="img/ST7735front01.jpg" width="200"> | <img src="img/ST7735front02.jpg" width="200">  
 <img src="img/ST7735back01.jpg" width="200"> | <img src="img/ST7735back02.jpg" width="200">
 
@@ -34,7 +35,7 @@ VCC| VCC
 
 FlashAir|TYPE1|TYPE2|TYPE3|TYPE4|TYPE21|TYPE22|TYPE23
 --- | --- | --- | --- | --- | --- | --- | ---
----  |w/Reset|w/LED|w/PIO|w/SPI|primaly|secondary|twin
+---  |w/Reset|w/PIO|w/LED|w/SPI|primaly|secondary|twin
 CMD  |SDA |SDA |SDA |SDA/DO |SDA   |SDA  |SDA
 DAT0 |SCL |SCL |SCL |SCL/CLK|SCL   |SCL  |SCL
 DAT1 |DCX |DCX |DCX |DCX/-- |DCX   |DCX  |DCX
@@ -86,7 +87,6 @@ DAT1(8) |DCX |
 DAT2(9) |CSX |
 DAT3(1) |LED ||connect through 10kohm
 ---     |RESX|Pull-up(10korm) to 3.3V
----     |LED |3.3V
 VCC (4) |VCC |3.3V
 VSS(3,6)|GND |GND 
 
@@ -142,18 +142,18 @@ VSS(3,6)|GND | GND
 If you connect two identical displays, use this for twin display.
 You can draw each or both.
 
-FlashAir(Pin#) | ST7735 TFT | Power | comment
---- | --- | --- | ---
-CLK (5) |--- | Pull-down(10korm) to GND
-CMD (2) |SDA |
-DAT0(7) |SCL |
-DAT1(8) |DCX |
-DAT2(9) |CSX | Pull-up(10korm) to 3.3V
-DAT3(1) |CSX2|
----     |RESX| Pull-up(10korm) to 3.3V
----     |LED | 3.3V
-VCC (4) |VCC | 3.3V
-VSS(3,6)|GND | GND
+FlashAir(Pin#) | ST7735 TFT1 | ST7735 TFT2 | Power | comment
+--- | --- | --- | --- | ---
+CLK (5) |--- |--- | Pull-down(10korm) to GND
+CMD (2) |SDA |SDA |
+DAT0(7) |SCL |SCL |
+DAT1(8) |DCX |DCX |
+DAT2(9) |CSX |--- | Pull-up(10korm) to 3.3V
+DAT3(1) |--- |CSX2|
+---     |RESX|RESX| Pull-up(10korm) to 3.3V
+---     |LED |LED | 3.3V
+VCC (4) |VCC |VCC | 3.3V
+VSS(3,6)|GND |GND | GND
 
 ## Install
 
@@ -204,7 +204,7 @@ bgcolor : BBBBB_GGGGGG_RRRRR (64K(16bpp) back ground color)
 
 command | description
 --- | ---
-ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST,  2:D3=LED, 3:D3=PIO, 4:with SPI, 21:primaly, 22:secondaly, 23:twin <br> See module connections information.<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** module GM pad
+ST7735:init(type,rotate,xSize,ySize,rOffset,dOffset,gm) | Parameter initialization and reset LCD module.<br>**type:** 1:D3=RST,  2:D3=PIO, 3:D3=LED, 4:with SPI, 21:primaly, 22:secondaly, 23:twin <br> See module connections information.<br>**rotate:** 0:Vertical default, 1:Horizontal default, 2:Vertical reverse, 3:Horizontal reverse<br>**xSize,ySize:** LCD x size, y size<br>**rOffset,dOffset:** RAM address offset<br>**gm:** module GM pad
 ST7735:flip(rFlip,dFlip) | Filp x-axis or y-axis for graphic writing.<br>**rFlip,dFlip:** 0:normal, 1:flip
 tbl=ST7735:duplicate() | Duplicate ST7735 library, if you use two deferent TFT module of ST7735 or rotation.<br>**return:** duplicated table of library.
 ST7735:writeStart([flag]) | Enable control.<br>**flag:** 1:primaly, 2:secondly, 3:both<br>default is 2 at TYPE22, 3 at TYPE23, 1 at others.
