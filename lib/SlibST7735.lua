@@ -846,7 +846,7 @@ function ST7735:pio(ctrl, data)
 	local dat,s,ret
 
 	if self.type>1 then
-		s,ret = self:pinSet(ctrl*2+data,4,4,4,4)
+		s,ret = self:pinSet((1-ctrl)*2+data,4,4,4,4)
 		if s==1 then
 			ret = bit32.btest(ret,0x10) and 1 or 0
 		end
