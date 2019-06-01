@@ -3,6 +3,7 @@
 Lua library for TFT display modules with ST7735 for FlashAir.  
 <img src="img/ST7735connect02.jpg" width="300"> <img src="img/ST7735connect01.jpg" width="300">
 
+2019/6/1 Japanese font support. Inter-character space and line interval support by locate command.
 
 ## Tested equipment
 
@@ -212,17 +213,19 @@ ST7735:writeEnd()   | Disable control.
 ST7735:cls()        | Clear screen.
 ST7735:dspOn()      | Display contents of RAM.
 ST7735:dspOff()     | Do not display contents of RAM.
-ST7735:pset(x,y,color) | Plot point at (x,y).
-ST7735:line(x1,y1,x2,y2,color) | Plot line (x1,y1)-(x2,y2).
-ST7735:box(x1,y1,x2,y2,color) | Plot box (x1,y1)-(x2,y2).
-ST7735:boxFill(x1,y1,x2,y2,color) | Plot filled box (x1,y1)-(x2,y2).
-ST7735:circle(x,y,xr,yr,color) | Plot circle of center(x,y), radius(xr,yr).
-ST7735:circleFill(x,y,xr,yr,color) | Plot filled circle of center(x,y), radius(xr,yr).
+ST7735:pset(x,y,color) | Plot point at (x,y). If color is omitted, fgcolor is used.
+ST7735:line(x1,y1,x2,y2,color) | Plot line (x1,y1)-(x2,y2). If color is omitted, fgcolor is used.
+ST7735:box(x1,y1,x2,y2,color) | Plot box (x1,y1)-(x2,y2). If color is omitted, fgcolor is used.
+ST7735:boxFill(x1,y1,x2,y2,color) | Plot filled box (x1,y1)-(x2,y2). If color is omitted, fgcolor is used.
+ST7735:circle(x,y,xr,yr,color) | Plot circle of center(x,y), radius(xr,yr). If color is omitted, fgcolor is used.
+ST7735:circleFill(x,y,xr,yr,color) | Plot filled circle of center(x,y), radius(xr,yr). If color is omitted, fgcolor is used.
 ST7735:put(x,y,bitmap) | Put 16bpp bitmap at upper left coordinates with (x,y).
 ST7735:put2(x,y,bitmap)| Put 16bpp flat bitmap faster at upper left coordinates with (x,y).
-ST7735:locate(x,y,mag,color,bgcolor,font) | Locate cursor, set print area(x,y)-(xSize-1,ySize-1), attributions and font.<br>If you do not want to change any arguments you can substitute nil.
-x,y=ST7735:print(str) | Print alphabets and return next cursor position.
-x,y=ST7735:println(str) | Print alphabets, creates a new line and return next cursor position.
+ST7735:color(fgcolor,bgcolor) | Default color setting.
+ST7735:locate(x,y,mag,xsapce,yspace) | Locate cursor, set print area(x,y)-(xSize-1,ySize-1).**mag:** Text magnification. default is 1.<br>**xspace:** Inter-character space. default is 0.<br>**yspace:** line interval. default is 0. <br>If you do not want to change any arguments you can substitute nil.
+ST7735:setFont(font) | Set font table or return value of SlibJfont.lua.
+x,y,n,rows=ST7735:print(str) | Print alphabets and return next cursor position.Output will be stopped if the drawing range is exceeded.<br>**n:** Number of characters output.<br>**rows:** Number of lines output.
+x,y,n,rows=ST7735:println(str) | Print alphabets, creates a new line and return next cursor position.Output will be stopped if the drawing range is exceeded.<br>**n:** Number of characters output.<br>**rows:** Number of lines output.
 ST7735:ledOn() | LED backlight ON at TYPE2.
 ST7735:ledOff() | LED backlight OFF at TYPE2.
 ret=ST7735:pio(ctrl,data) | PIO control of DAT3 at TYPE3.<br>PIO default is input.<br>**ctrl:** 0:input, 1:output. data: value for output<br>**return:** input value or nil at TYPE1
@@ -238,17 +241,45 @@ res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI re
 >sample.lua       `-- draw graphics demo`  
 >sample_dual.lua  `-- graphics demo of twin LCD`  
 >sample_eyes.lua  `-- Caterpillar eyes move demo of twin LCD`  
+>sample_kanji.lua `-- Kanji character support demo`  
 >lib/SlibST7735.lua  
 >lib/SlibBMP.lua  `-- Copy from FlashAir-SlibBMP repository`  
 >img/balloon01.bmp  
 >font/font74.lua  
 
-These files copy to somewhere in FlashAir.
+These files copy to somewhere in FlashAir.  
 
+If you want to run "sample_kanji.lua", please prepare the following.  
+
+### 日本語フォントを使う方法
+日本語フォントを使う場合は、下記のレポジトリをご参照ください。  
+https://github.com/AoiSaya/FlashAir_SlibJfont  
+
+例として、"sample_kanji.lua"を実行する手順を以下に示します。  
+上記レポジトリから以下のファイルを入手してFlashAirに保存します。  
+
+    lib/SlibJfont.lua  -- ライブラリ  
+    lib/Utf8Euc_jp.tbl -- UTF-8をEUC-JPに変換する際の変換テーブル  
+    font/bdf2sef.lua   -- ファイル形式変換プログラム  
+
+### サンプル用フォントの入手
+[文字情報サービス環境 CHISE](http://www.chise.org/dist/fonts/BDF/JISX0213/)から  
+jiskan24-2003-1.bdf.gz をダウンロードして解凍し、下記ファイルをfont/ の下に置きます。  
+    jiskan24-2003-1.bdf  
+    12x24rk.bdf  
+
+次に bdf2sef.lua を編集して、末尾に  
+
+    convBdf2Bin("jiskan24-2003-1.bdf")  
+    convBdf2Bin("k12x24rk.bdf")  
+    
+を追加してください。  
+bdf2sef.lua を実行すると、font/ の下に"jiskan24-2003-1.sef" と "k12x24rk.sef" が生成されます。  
+この状態で "sample_kanji.lua" を実行すると、LCD上に日本語が表示されます。  
 
 ## Licence
 
-[MIT](https://github.com/AoiSaya/FlashAir-libBMP/blob/master/LICENSE)
+[MIT](/LICENSE)
 
 ## Author
 
