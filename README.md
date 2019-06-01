@@ -236,7 +236,7 @@ res_num = ST7735:spiRead()<br>res_tbl = ST7735:spiRead(xfer_num,data_num)|SPI re
 
 ## Sample program
 
-<img src="img/ST7735sample01.jpg" width="250"> <img src="img/ST7735sample02.jpg" width="250">
+<img src="img/ST7735sample01.jpg" width="250"> <img src="img/ST7735sample02.jpg" width="250"> <img src="img/ST7735sample03.jpg" width="250">
 
 >sample.lua       `-- draw graphics demo`  
 >sample_dual.lua  `-- graphics demo of twin LCD`  
