@@ -890,7 +890,7 @@ function ST7735:print(str) -- ASCII or EUC
 end
 
 function ST7735:println(str)
-	local x,y,n = self:print(str)
+	local x,y,n,rows = self:print(str)
 	local yh = self.yh
 
 	self.x,self.y = self.x0,self.y+self.mag*yh
@@ -898,7 +898,7 @@ function ST7735:println(str)
 		self.y = self.y0
 	end
 
-	return self.x,self.y,n
+	return self.x,self.y,n,rows
 end
 
 function ST7735:pio(ctrl, data)
